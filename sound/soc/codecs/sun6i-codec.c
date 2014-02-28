@@ -26,15 +26,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
-#include <asm/io.h>
-#include <mach/dma.h>
-#include <mach/gpio.h>
-#include <mach/sys_config.h>
-#include <mach/system.h>
 #ifdef CONFIG_PM
 #include <linux/pm.h>
 #endif
-#include <asm/mach-types.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -43,7 +37,9 @@
 #include <sound/soc.h>
 #include <linux/clk.h>
 #include <linux/timer.h>
-#include <mach/clock.h>
+#include <linux/io.h>
+#include <linux/reset.h>
+#include <linux/of_gpio.h>
 #include "sun6i-codec.h"
 
 struct clk *codec_apbclk,*codec_pll2clk,*codec_moduleclk;
@@ -52,8 +48,6 @@ static unsigned int play_dmasrc = 0;
 
 /*for pa gpio ctrl*/
 static int req_status;
-static script_item_u item;
-static script_item_value_type_e  type;
 static bool codec_lineinin_enabled = false;
 static bool codec_lineincap_enabled = false;
 static bool codec_speakerout_enabled = false;
@@ -100,9 +94,9 @@ struct sun6i_playback_runtime_data {
 	dma_addr_t   dma_start;
 	dma_addr_t   dma_pos;
 	dma_addr_t	 dma_end;
-	dm_hdl_t	dma_hdl;
+//	dm_hdl_t	dma_hdl;
 	bool		play_dma_flag;
-	struct dma_cb_t play_done_cb;
+//	struct dma_cb_t play_done_cb;
 	struct sun6i_pcm_dma_params	*params;
 };
 
@@ -115,9 +109,9 @@ struct sun6i_capture_runtime_data {
 	dma_addr_t   dma_start;
 	dma_addr_t   dma_pos;
 	dma_addr_t	 dma_end;
-	dm_hdl_t	dma_hdl;
+//	dm_hdl_t	dma_hdl;
 	bool		capture_dma_flag;
-	struct dma_cb_t capture_done_cb;
+//	struct dma_cb_t capture_done_cb;
 	struct sun6i_pcm_dma_params	*params;
 };
 
@@ -322,25 +316,28 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 */
 static  void codec_init(void)
 {
-	int headphone_vol = 0;
-	int headphone_direct_used = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
-	enum sw_ic_ver  codec_chip_ver;
+	/* int headphone_vol = 0; */
+	/* int headphone_direct_used = 0; */
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
+	/* enum sw_ic_ver  codec_chip_ver; */
 
-	codec_chip_ver = sw_get_ic_ver();
-	type = script_get_item("audio_para", "headphone_direct_used", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_direct_used = val.val;
-	if (headphone_direct_used && (codec_chip_ver != MAGIC_VER_A31A)) {
-		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3);
-		codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1);
-	} else {
+	/* codec_chip_ver = sw_get_ic_ver(); */
+	/* type = script_get_item("audio_para", "headphone_direct_used", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+
+	/* TODO: Retrieved from FEX, and need to figure out what is the revision about */
+	/* headphone_direct_used = val.val; */
+	/* if (headphone_direct_used && (codec_chip_ver != MAGIC_VER_A31A)) { */
+	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3); */
+	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1); */
+	/* } else { */
 		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
 		codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
-	}
+	/* } */
+
 	/*audio codec hardware bug. the HBIASADCEN bit must be enable in init*/
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
 
@@ -370,39 +367,44 @@ static  void codec_init(void)
 	
 	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
 	
-	type = script_get_item("audio_para", "headphone_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_vol = val.val;
-	/*set HPVOL volume*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
+	/* type = script_get_item("audio_para", "headphone_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+
+	/* headphone_vol = val.val; */
+
+	/* set HPVOL volume */
+	/* TODO: Used to be retrieved by FEX */
+	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x3b);
 }
 
 static int codec_pa_play_open(void)
 {
-	int pa_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
-	int pa_double_used = 0;
-	type = script_get_item("audio_para", "pa_double_used", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-    pa_double_used = val.val;
-    if (!pa_double_used) {
-		type = script_get_item("audio_para", "pa_single_vol", &val);
-		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-	        printk("[audiocodec] type err!\n");
-	    }
-		pa_vol = val.val;
-	} else {
-		type = script_get_item("audio_para", "pa_double_vol", &val);
-		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-	        printk("[audiocodec] type err!\n");
-	    }
-		pa_vol = val.val;
-	}
+	/* int pa_vol = 0; */
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
+	/* int pa_double_used = 0; */
+
+	/* type = script_get_item("audio_para", "pa_double_used", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* pa_double_used = val.val; */
+	/* if (!pa_double_used) { */
+	/* 	type = script_get_item("audio_para", "pa_single_vol", &val); */
+	/* 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 		printk("[audiocodec] type err!\n"); */
+	/* 	} */
+	/* 	pa_vol = val.val; */
+	/* } else { */
+	/* 	type = script_get_item("audio_para", "pa_double_vol", &val); */
+	/* 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 		printk("[audiocodec] type err!\n"); */
+	/* 	} */
+	/* 	pa_vol = val.val; */
+	/* } */
+
 	/*mute l_pa and r_pa*/
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
@@ -423,13 +425,16 @@ static int codec_pa_play_open(void)
 
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x1);
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x1);
-	if (!pa_double_used) {
+
+	/* TODO: This used to be retrieved by FEX */
+	/* if (!pa_double_used) { */
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x1);
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x1);
-	} else {
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0);
-	}
+	/* } else { */
+	/* 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0); */
+	/* 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0); */
+	/* } */
+
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
 
@@ -439,29 +444,39 @@ static int codec_pa_play_open(void)
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
 	
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, pa_vol);
+	/*
+	 * TODO: This used to be retrieved by FEX.
+	 * The script has nice comments explaining what values mean in term of dB output
+	 */
+	codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x19);
 
-	mdelay(3);
-	item.gpio.data = 1;
-	/*config gpio info of audio_pa_ctrl open*/
-	if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-		printk("sw_gpio_setall_range failed\n");
-	}
-	mdelay(62);
+	/* TODO: Configure the GPIO using gpiolib */
+	/* mdelay(3); */
+	/* item.gpio.data = 1; */
+	/* /\*config gpio info of audio_pa_ctrl open*\/ */
+	/* if (0 != sw_gpio_setall_range(&item.gpio, 1)) { */
+	/* 	printk("sw_gpio_setall_range failed\n"); */
+	/* } */
+	/* mdelay(62); */
+
 	return 0;
 }
 
 static int codec_headphone_play_open(void)
 {
 	int headphone_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 
-	type = script_get_item("audio_para", "headphone_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_vol = val.val;
+	/* type = script_get_item("audio_para", "headphone_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* headphone_vol = val.val; */
+
+	/* TODO: This used to be retrieved by FEX */
+	headphone_vol = 0x3b;
+
 	/*mute l_pa and r_pa*/
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
 	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
@@ -497,14 +512,17 @@ static int codec_headphone_play_open(void)
 static int codec_capture_open(void)
 {
 	int cap_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 
-	type = script_get_item("audio_para", "cap_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	cap_vol = val.val;
+	/* type = script_get_item("audio_para", "cap_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* cap_vol = val.val; */
+
+	/* TODO: This used to be retrieved by FEX */
+	cap_vol = 5;
 
 	/*enable mic1 pa*/
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x1);
@@ -544,14 +562,17 @@ static int codec_play_stop(void)
 {
 	int i = 0;
 	int headphone_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 
-	type = script_get_item("audio_para", "headphone_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_vol = val.val;
+	/* type = script_get_item("audio_para", "headphone_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* headphone_vol = val.val; */
+
+	/* TODO: This used to be retrieved by FEX*/
+	headphone_vol = 0x3b;
 
 	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
 	for (i = 0; i < headphone_vol; i++) {
@@ -579,11 +600,12 @@ static int codec_play_stop(void)
 	/*disable dac digital*/
 	codec_wr_control(SUN6I_DAC_DPC ,  0x1, DAC_EN, 0x0);
 
-	item.gpio.data = 0;
-	/*config gpio info of audio_pa_ctrl open*/
-	if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-		printk("sw_gpio_setall_range failed\n");
-	}
+	/* TODO: Configure the GPIO */
+	/* item.gpio.data = 0; */
+	/* /\*config gpio info of audio_pa_ctrl open*\/ */
+	/* if (0 != sw_gpio_setall_range(&item.gpio, 1)) { */
+	/* 	printk("sw_gpio_setall_range failed\n"); */
+	/* } */
 
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
@@ -629,11 +651,11 @@ static int codec_dev_free(struct snd_device *device)
 };
 
 /*
-*	codec_lineinin_enabled == 1, open the linein in.
-*	codec_lineinin_enabled == 0, close the linein in.
-*/
+ *	codec_lineinin_enabled == 1, open the linein in.
+ *	codec_lineinin_enabled == 0, close the linein in.
+ */
 static int codec_set_lineinin(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	codec_lineinin_enabled = ucontrol->value.integer.value[0];
 
@@ -654,14 +676,14 @@ static int codec_set_lineinin(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_lineinin(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_lineinin_enabled;
 	return 0;
 }
 
 static int codec_set_lineincap(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			       struct snd_ctl_elem_value *ucontrol)
 {
 	codec_lineincap_enabled = ucontrol->value.integer.value[0];
 
@@ -680,41 +702,43 @@ static int codec_set_lineincap(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_lineincap(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			       struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_lineincap_enabled;
 	return 0;
 }
 
 /*
-*	codec_speakerout_enabled == 1, open the speaker.
-*	codec_speakerout_enabled == 0, close the speaker.
-*/
+ *	codec_speakerout_enabled == 1, open the speaker.
+ *	codec_speakerout_enabled == 0, close the speaker.
+ */
 static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
-	int pa_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	int pa_vol = 0x19;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 	int pa_double_used = 0;
-	type = script_get_item("audio_para", "pa_double_used", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-    pa_double_used = val.val;
-    if (!pa_double_used) {
-		type = script_get_item("audio_para", "pa_single_vol", &val);
-		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-	        printk("[audiocodec] type err!\n");
-	    }
-		pa_vol = val.val;
-	} else {
-		type = script_get_item("audio_para", "pa_double_vol", &val);
-		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-	        printk("[audiocodec] type err!\n");
-	    }
-		pa_vol = val.val;
-	}
+
+	/* TODO: This used to be retrieved by FEX */
+	/* type = script_get_item("audio_para", "pa_double_used", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* pa_double_used = val.val; */
+	/* if (!pa_double_used) { */
+	/* 	type = script_get_item("audio_para", "pa_single_vol", &val); */
+	/* 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 		printk("[audiocodec] type err!\n"); */
+	/* 	} */
+	/* 	pa_vol = val.val; */
+	/* } else { */
+	/* 	type = script_get_item("audio_para", "pa_double_vol", &val); */
+	/* 	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 		printk("[audiocodec] type err!\n"); */
+	/* 	} */
+	/* 	pa_vol = val.val; */
+	/* } */
 
 	codec_speakerout_enabled = ucontrol->value.integer.value[0];
 
@@ -729,13 +753,14 @@ static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
 
-		mdelay(3);
-		item.gpio.data = 1;
-		/*config gpio info of audio_pa_ctrl open*/
-		if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-			printk("sw_gpio_setall_range failed\n");
-		}
-		mdelay(62);
+		/* TODO: Set GPIO */
+		/* mdelay(3); */
+		/* item.gpio.data = 1; */
+		/* /\*config gpio info of audio_pa_ctrl open*\/ */
+		/* if (0 != sw_gpio_setall_range(&item.gpio, 1)) { */
+		/* 	printk("sw_gpio_setall_range failed\n"); */
+		/* } */
+		/* mdelay(62); */
 	} else {
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
@@ -746,39 +771,41 @@ static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
 
-		item.gpio.data = 0;
-		/*config gpio info of audio_pa_ctrl open*/
-		if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-			printk("sw_gpio_setall_range failed\n");
-		}
+		/* TODO: Set GPIO */
+		/* item.gpio.data = 0; */
+		/* /\*config gpio info of audio_pa_ctrl open*\/ */
+		/* if (0 != sw_gpio_setall_range(&item.gpio, 1)) { */
+		/* 	printk("sw_gpio_setall_range failed\n"); */
+		/* } */
 	}
 
 	return 0;
 }
 
 static int codec_get_speakerout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_speakerout_enabled;
 	return 0;
 }
 
 /*
-*	codec_headphoneout_enabled == 1, open the headphone.
-*	codec_headphoneout_enabled == 0, close the headphone.
-*/
+ *	codec_headphoneout_enabled == 1, open the headphone.
+ *	codec_headphoneout_enabled == 0, close the headphone.
+ */
 static int codec_set_headphoneout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				  struct snd_ctl_elem_value *ucontrol)
 {
-	int headphone_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	int headphone_vol = 0x3b;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 
-	type = script_get_item("audio_para", "headphone_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_vol = val.val;
+	/* TODO: Retrieved by FEX */
+	/* type = script_get_item("audio_para", "headphone_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* headphone_vol = val.val; */
 
 	codec_headphoneout_enabled = ucontrol->value.integer.value[0];
 
@@ -808,28 +835,29 @@ static int codec_set_headphoneout(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_headphoneout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				  struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_headphoneout_enabled;
 	return 0;
 }
 
 /*
-*	codec_earpieceout_enabled == 1, open the earpiece.
-*	codec_earpieceout_enabled == 0, close the earpiece.
-*/
+ *	codec_earpieceout_enabled == 1, open the earpiece.
+ *	codec_earpieceout_enabled == 0, close the earpiece.
+ */
 static int codec_set_earpieceout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				 struct snd_ctl_elem_value *ucontrol)
 {
-		int headphone_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	int headphone_vol = 0x3b;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 
-	type = script_get_item("audio_para", "headphone_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_vol = val.val;
+	/* TODO: Retrieved by FEX */
+	/* type = script_get_item("audio_para", "headphone_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* headphone_vol = val.val; */
 
 	codec_earpieceout_enabled = ucontrol->value.integer.value[0];
 
@@ -863,18 +891,18 @@ static int codec_set_earpieceout(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_earpieceout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_earpieceout_enabled;
 	return 0;
 }
 
 /*
-*	codec_phonecap_enabled == 1. open the telephone's record
-*	codec_phonecap_enabled == 0. close the telephone's record
-*/
+ *	codec_phonecap_enabled == 1. open the telephone's record
+ *	codec_phonecap_enabled == 0. close the telephone's record
+ */
 static int codec_set_phonecap(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	codec_phonecap_enabled = ucontrol->value.integer.value[0];
 
@@ -899,20 +927,20 @@ static int codec_set_phonecap(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_phonecap(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_phonecap_enabled;
 	return 0;
 }
 
 /*
-*	codec_phonein_enabled == 1, the phone in is open.
-*	while you open one of the device(speaker,earpiece,headphone).
-*	you can hear the caller's voice.
-*	codec_phonein_enabled == 0. the phone in is close.
-*/
+ *	codec_phonein_enabled == 1, the phone in is open.
+ *	while you open one of the device(speaker,earpiece,headphone).
+ *	you can hear the caller's voice.
+ *	codec_phonein_enabled == 0. the phone in is close.
+ */
 static int codec_set_phonein(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			     struct snd_ctl_elem_value *ucontrol)
 {
 	codec_phonein_enabled = ucontrol->value.integer.value[0];
 	if (codec_phonein_enabled) {
@@ -932,28 +960,28 @@ static int codec_set_phonein(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_phonein(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			     struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_phonein_enabled;
 	return 0;
 }
 
 /*
-*	codec_phoneout_enabled == 1, the phone out is open. receiver can hear the voice which you say.
-*	codec_phoneout_enabled == 0,	the phone out is close.
-*/
+ *	codec_phoneout_enabled == 1, the phone out is open. receiver can hear the voice which you say.
+ *	codec_phoneout_enabled == 0,	the phone out is close.
+ */
 static int codec_set_phoneout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	int cap_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 
-	type = script_get_item("audio_para", "cap_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	cap_vol = val.val;
+	/* type = script_get_item("audio_para", "cap_vol", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* cap_vol = val.val; */
 
 	codec_phoneout_enabled = ucontrol->value.integer.value[0];
 
@@ -979,7 +1007,7 @@ static int codec_set_phoneout(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_phoneout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			      struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_phoneout_enabled;
 	return 0;
@@ -1017,11 +1045,11 @@ static int codec_dacphoneout_open(void)
 }
 
 /*
-*	codec_dacphoneout_enabled == 1, the dac phone out is open. the receiver can hear the voice from system.
-*	codec_dacphoneout_enabled == 0,	the dac phone out is close.
-*/
+ *	codec_dacphoneout_enabled == 1, the dac phone out is open. the receiver can hear the voice from system.
+ *	codec_dacphoneout_enabled == 0,	the dac phone out is close.
+ */
 static int codec_set_dacphoneout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = 0;
 	codec_dacphoneout_enabled = ucontrol->value.integer.value[0];
@@ -1037,7 +1065,7 @@ static int codec_set_dacphoneout(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_dacphoneout(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_dacphoneout_enabled;
 	return 0;
@@ -1062,11 +1090,11 @@ static int codec_adcphonein_open(void)
 }
 
 /*
-*	codec_adcphonein_enabled == 1, the adc phone in is open. you can record the phonein from adc.
-*	codec_adcphonein_enabled == 0,	the adc phone in is close.
-*/
+ *	codec_adcphonein_enabled == 1, the adc phone in is open. you can record the phonein from adc.
+ *	codec_adcphonein_enabled == 0,	the adc phone in is close.
+ */
 static int codec_set_adcphonein(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = 0;
 	codec_adcphonein_enabled = ucontrol->value.integer.value[0];
@@ -1084,66 +1112,73 @@ static int codec_set_adcphonein(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_adcphonein(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_adcphonein_enabled;
 	return 0;
 }
 
 /*
-*	codec_speaker_enabled == 1, speaker is open, headphone is close.
-*	codec_speaker_enabled == 0, speaker is closed, headphone is open.
-*	this function just used for the system voice(such as music and moive voice and so on),
-*	no the phone call.
-*/
+ *	codec_speaker_enabled == 1, speaker is open, headphone is close.
+ *	codec_speaker_enabled == 0, speaker is closed, headphone is open.
+ *	this function just used for the system voice(such as music and moive voice and so on),
+ *	no the phone call.
+ */
 static int codec_set_spk(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			 struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = 0;
-	int headphone_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
+	int headphone_vol = 0x3b;
+	/* script_item_u val; */
+	/* script_item_value_type_e  type; */
 	int headphone_direct_used = 0;
-	enum sw_ic_ver  codec_chip_ver;
+	/* enum sw_ic_ver  codec_chip_ver; */
 
-	codec_chip_ver = sw_get_ic_ver();
-	type = script_get_item("audio_para", "headphone_direct_used", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_direct_used = val.val;
-	if (headphone_direct_used && (codec_chip_ver != MAGIC_VER_A31A)) {
-		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3);
-		codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1);
-	} else {
+	/* TODO: Retrieved by FEX, plus some revisions mangling */
+	/* codec_chip_ver = sw_get_ic_ver(); */
+	/* type = script_get_item("audio_para", "headphone_direct_used", &val); */
+	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+	/* 	printk("[audiocodec] type err!\n"); */
+	/* } */
+	/* headphone_direct_used = val.val; */
+
+	/* if (headphone_direct_used && (codec_chip_ver != MAGIC_VER_A31A)) { */
+	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3); */
+	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1); */
+	/* } else { */
 		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
 		codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
-	}
+	/* } */
 
 	codec_speaker_enabled = ucontrol->value.integer.value[0];
 	if (codec_speaker_enabled) {
 		ret = codec_pa_play_open();
 	} else {
-		item.gpio.data = 0;
+		/* item.gpio.data = 0; */
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x0);
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
 		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
-		/*config gpio info of audio_pa_ctrl close*/
-		if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-			printk("sw_gpio_setall_range failed\n");
-		}
+
+		/* TODO: GPIOlib */
+		/* /\*config gpio info of audio_pa_ctrl close*\/ */
+		/* if (0 != sw_gpio_setall_range(&item.gpio, 1)) { */
+		/* 	printk("sw_gpio_setall_range failed\n"); */
+		/* } */
+
 		/*unmute l_pa and r_pa*/
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
 		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
 		codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
 
-		type = script_get_item("audio_para", "headphone_vol", &val);
-		if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-			printk("[audiocodec] type err!\n");
-		}
-		headphone_vol = val.val;
+		/* TODO: Retrieved by FEX */
+		/* type = script_get_item("audio_para", "headphone_vol", &val); */
+		/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
+		/* 	printk("[audiocodec] type err!\n"); */
+		/* } */
+		/* headphone_vol = val.val; */
+
 		/*set HPVOL volume*/
 		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
 	}
@@ -1151,15 +1186,15 @@ static int codec_set_spk(struct snd_kcontrol *kcontrol,
 }
 
 static int codec_get_spk(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+			 struct snd_ctl_elem_value *ucontrol)
 {
 	ucontrol->value.integer.value[0] = codec_speaker_enabled;
 	return 0;
 }
 
 /*
-* 	.info = snd_codec_info_volsw, .get = snd_codec_get_volsw,\.put = snd_codec_put_volsw, 
-*/
+ * 	.info = snd_codec_info_volsw, .get = snd_codec_get_volsw,\.put = snd_codec_put_volsw, 
+ */
 static const struct snd_kcontrol_new codec_snd_controls[] = {
 	/*SUN6I_DAC_ACTL = 0x20,PAVOL*/
 	CODEC_SINGLE("Master Playback Volume", SUN6I_DAC_ACTL,0,0x3f,0),			/*0*/
@@ -1219,19 +1254,19 @@ static const struct snd_kcontrol_new codec_snd_controls[] = {
 	CODEC_SINGLE("ADC dither on_off ctrl", SUN6I_ADDAC_TUNE,25,0x7f,0),					/*46*/
 	
 	/*SUN6I_HMIC_CTL = 0x50
-	* warning:
-	* the key and headphone should be check in the switch driver,
-	* can't be used in this mixer control.
-	* you should be careful while use the key and headphone check in the mixer control
-	* it may be confilcted with the key and headphone switch driver.
-	*/
+	 * warning:
+	 * the key and headphone should be check in the switch driver,
+	 * can't be used in this mixer control.
+	 * you should be careful while use the key and headphone check in the mixer control
+	 * it may be confilcted with the key and headphone switch driver.
+	 */
 	CODEC_SINGLE("Hmic_M debounce key down_up", SUN6I_HMIC_CTL,28,0xf,0),				/*47*/
 	CODEC_SINGLE("Hmic_N debounce earphone plug in_out", SUN6I_HMIC_CTL,24,0xf,0),		/*48*/
 	
 	/*SUN6I_DAC_DAP_CTL = 0x60
-	* warning:the DAP should be realize in a DAP driver?
-	* it may be strange using the mixer control to realize the DAP function.
-	*/
+	 * warning:the DAP should be realize in a DAP driver?
+	 * it may be strange using the mixer control to realize the DAP function.
+	 */
 	CODEC_SINGLE("DAP enable", SUN6I_DAC_DAP_CTL,31,0x1,0),								/*49*/
 	CODEC_SINGLE("DAP start control", SUN6I_DAC_DAP_CTL,30,0x1,0),						/*50*/
 	CODEC_SINGLE("DAP state", SUN6I_DAC_DAP_CTL,29,0x1,0),								/*51*/
@@ -1300,7 +1335,7 @@ static const struct snd_kcontrol_new codec_snd_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Audio linein in", 0, codec_get_lineinin, codec_set_lineinin),    			/*101*/
 };
 
-int __init snd_chip_codec_mixer_new(struct sun6i_codec *chip)
+int snd_chip_codec_mixer_new(struct sun6i_codec *chip)
 {
 	struct snd_card *card;
 	int idx, err;
@@ -1341,7 +1376,8 @@ static void sun6i_pcm_enqueue(struct snd_pcm_substream *substream)
 			}
 			/*because dma enqueue the first buffer while config dma,so at the beginning, can't add the buffer*/
 			if (play_prtd->play_dma_flag) {
-				play_ret = sw_dma_enqueue(play_prtd->dma_hdl, play_pos, play_prtd->params->dma_addr, play_len, ENQUE_PHASE_NORMAL);
+				/* TODO: Do a proper dmaengine call */
+				/* play_ret = sw_dma_enqueue(play_prtd->dma_hdl, play_pos, play_prtd->params->dma_addr, play_len, ENQUE_PHASE_NORMAL); */
 			}
 			play_prtd->play_dma_flag = true;
 			if (play_ret == 0) {
@@ -1365,14 +1401,15 @@ static void sun6i_pcm_enqueue(struct snd_pcm_substream *substream)
 			}
 			/*because dma enqueue the first buffer while config dma,so at the beginning, can't add the buffer*/
 			if (capture_prtd->capture_dma_flag) {
-				capture_ret = sw_dma_enqueue(capture_prtd->dma_hdl, capture_prtd->params->dma_addr, capture_pos, capture_len, ENQUE_PHASE_NORMAL);
+				/* TODO: Do a proper dmaengine call */
+				/* capture_ret = sw_dma_enqueue(capture_prtd->dma_hdl, capture_prtd->params->dma_addr, capture_pos, capture_len, ENQUE_PHASE_NORMAL); */
 			}
 			capture_prtd->capture_dma_flag = true;
 			if (capture_ret == 0) {
-			capture_prtd->dma_loaded++;
-			capture_pos += capture_prtd->dma_period;
-			if (capture_pos >= capture_prtd->dma_end)
-				capture_pos = capture_prtd->dma_start;
+				capture_prtd->dma_loaded++;
+				capture_pos += capture_prtd->dma_period;
+				if (capture_pos >= capture_prtd->dma_end)
+					capture_pos = capture_prtd->dma_start;
 			} else {
 				break;
 			}	  
@@ -1381,59 +1418,60 @@ static void sun6i_pcm_enqueue(struct snd_pcm_substream *substream)
 	}
 }
 
-static u32 sun6i_audio_capture_buffdone(dm_hdl_t dma_hdl, void *parg,
-		                                  enum dma_cb_cause_e result)
-{
-	struct sun6i_capture_runtime_data *capture_prtd = NULL;
-	struct snd_pcm_substream *substream = NULL;
+/* TODO: Switch to proper DMAengine callbacks */
+/* static u32 sun6i_audio_capture_buffdone(dm_hdl_t dma_hdl, void *parg, */
+/* 					enum dma_cb_cause_e result) */
+/* { */
+/* 	struct sun6i_capture_runtime_data *capture_prtd = NULL; */
+/* 	struct snd_pcm_substream *substream = NULL; */
 
-	if ((result == DMA_CB_ABORT) || (parg == NULL)) {
-		return 0;
-	}
-	substream = parg;
-	capture_prtd = substream->runtime->private_data;
-	if ((substream) && (capture_prtd)) {
-		snd_pcm_period_elapsed(substream);
-	} else {
-		return 0;
-	}
+/* 	if ((result == DMA_CB_ABORT) || (parg == NULL)) { */
+/* 		return 0; */
+/* 	} */
+/* 	substream = parg; */
+/* 	capture_prtd = substream->runtime->private_data; */
+/* 	if ((substream) && (capture_prtd)) { */
+/* 		snd_pcm_period_elapsed(substream); */
+/* 	} else { */
+/* 		return 0; */
+/* 	} */
 
-	spin_lock(&capture_prtd->lock);
-	{
-		capture_prtd->dma_loaded--;
-		sun6i_pcm_enqueue(substream);
-	}
-	spin_unlock(&capture_prtd->lock);
+/* 	spin_lock(&capture_prtd->lock); */
+/* 	{ */
+/* 		capture_prtd->dma_loaded--; */
+/* 		sun6i_pcm_enqueue(substream); */
+/* 	} */
+/* 	spin_unlock(&capture_prtd->lock); */
 
-	return 0;
-}
+/* 	return 0; */
+/* } */
 
-static u32 sun6i_audio_play_buffdone(dm_hdl_t dma_hdl, void *parg,
-		                                  enum dma_cb_cause_e result)
-{
-	struct sun6i_playback_runtime_data *play_prtd = NULL;
-	struct snd_pcm_substream *substream = NULL;
+/* static u32 sun6i_audio_play_buffdone(dm_hdl_t dma_hdl, void *parg, */
+/* 				     enum dma_cb_cause_e result) */
+/* { */
+/* 	struct sun6i_playback_runtime_data *play_prtd = NULL; */
+/* 	struct snd_pcm_substream *substream = NULL; */
 	
-	if ((result == DMA_CB_ABORT) || (parg == NULL)) {
-		return 0;
-	}
-	substream = parg;
-	play_prtd = substream->runtime->private_data;
-	if ((substream) && (play_prtd)) {
-		snd_pcm_period_elapsed(substream);
-	} else {
-		return 0;
-	}
+/* 	if ((result == DMA_CB_ABORT) || (parg == NULL)) { */
+/* 		return 0; */
+/* 	} */
+/* 	substream = parg; */
+/* 	play_prtd = substream->runtime->private_data; */
+/* 	if ((substream) && (play_prtd)) { */
+/* 		snd_pcm_period_elapsed(substream); */
+/* 	} else { */
+/* 		return 0; */
+/* 	} */
 
-	spin_lock(&play_prtd->lock);
-	{
-		play_prtd->dma_loaded--;
-		sun6i_pcm_enqueue(substream);
-	}
-	spin_unlock(&play_prtd->lock);
+/* 	spin_lock(&play_prtd->lock); */
+/* 	{ */
+/* 		play_prtd->dma_loaded--; */
+/* 		sun6i_pcm_enqueue(substream); */
+/* 	} */
+/* 	spin_unlock(&play_prtd->lock); */
 
-	return 0;
-}
+/* 	return 0; */
+/* } */
 
 static snd_pcm_uframes_t snd_sun6i_codec_pointer(struct snd_pcm_substream *substream)
 {	
@@ -1442,44 +1480,50 @@ static snd_pcm_uframes_t snd_sun6i_codec_pointer(struct snd_pcm_substream *subst
 	struct sun6i_capture_runtime_data *capture_prtd = NULL;
 	struct snd_pcm_runtime *play_runtime = NULL;
 	struct snd_pcm_runtime *capture_runtime = NULL;
-    snd_pcm_uframes_t play_offset = 0;
+	snd_pcm_uframes_t play_offset = 0;
 
-    if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		play_runtime = substream->runtime;
 		play_prtd = play_runtime->private_data;
 		spin_lock(&play_prtd->lock);
-		if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_GET_CUR_SRC_ADDR, &play_dmasrc)) {
-			printk("err:%s, line:%d\n", __func__, __LINE__);
-		}
+
+		/* TODO: Switch to dmaengine */
+		/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_GET_CUR_SRC_ADDR, &play_dmasrc)) { */
+		/* 	printk("err:%s, line:%d\n", __func__, __LINE__); */
+		/* } */
+
 		play_offset = bytes_to_frames(play_runtime, play_dmasrc - play_runtime->dma_addr);
 		spin_unlock(&play_prtd->lock);
 		if (play_offset >= play_runtime->buffer_size) {
 			play_offset = 0;
 		}
 		return play_offset;
-    } else {
-    	capture_runtime = substream->runtime;
-    	capture_prtd = capture_runtime->private_data;
+	} else {
+		capture_runtime = substream->runtime;
+		capture_prtd = capture_runtime->private_data;
 		spin_lock(&capture_prtd->lock);
-    	if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_GET_CUR_DST_ADDR, &capture_dmadst)) {
-			printk("err:%s, line:%d\n", __func__, __LINE__);
-		}
-    	capture_res = capture_dmadst - capture_prtd->dma_start;
-    	if (capture_res >= snd_pcm_lib_buffer_bytes(substream)) {
+
+		/* TODO: Switch to dmaengine */
+		/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_GET_CUR_DST_ADDR, &capture_dmadst)) { */
+		/* 	printk("err:%s, line:%d\n", __func__, __LINE__); */
+		/* } */
+		capture_res = capture_dmadst - capture_prtd->dma_start;
+
+		if (capture_res >= snd_pcm_lib_buffer_bytes(substream)) {
 			if (capture_res == snd_pcm_lib_buffer_bytes(substream))
 				capture_res = 0;
 		}
 		spin_unlock(&capture_prtd->lock);
 		return bytes_to_frames(substream->runtime, capture_res);
-    }
+	}
 }
 
 static int sun6i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params)
 {
-    struct snd_pcm_runtime *play_runtime = NULL, *capture_runtime = NULL;
-    struct sun6i_playback_runtime_data *play_prtd = NULL;
-    struct sun6i_capture_runtime_data *capture_prtd = NULL;
-    unsigned long play_totbytes = 0, capture_totbytes = 0;
+	struct snd_pcm_runtime *play_runtime = NULL, *capture_runtime = NULL;
+	struct sun6i_playback_runtime_data *play_prtd = NULL;
+	struct sun6i_capture_runtime_data *capture_prtd = NULL;
+	unsigned long play_totbytes = 0, capture_totbytes = 0;
 	
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 	  	play_runtime = substream->runtime;
@@ -1491,22 +1535,24 @@ static int sun6i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct
 			/*
 			 * requeset audio dma handle(we don't care about the channel!)
 			 */
-			play_prtd->dma_hdl = sw_dma_request(play_prtd->params->name, DMA_WORK_MODE_SINGLE);
-			if (NULL == play_prtd->dma_hdl) {
-				printk(KERN_ERR "failed to request audio_play dma handle\n");
-				return -EINVAL;
-			}
+			/* TODO: DMAengine */
+			/* play_prtd->dma_hdl = sw_dma_request(play_prtd->params->name, DMA_WORK_MODE_SINGLE); */
+			/* if (NULL == play_prtd->dma_hdl) { */
+			/* 	printk(KERN_ERR "failed to request audio_play dma handle\n"); */
+			/* 	return -EINVAL; */
+			/* } */
 			/*
-		 	* set callback
-		 	*/
-			memset(&play_prtd->play_done_cb, 0, sizeof(play_prtd->play_done_cb));
-			play_prtd->play_done_cb.func = sun6i_audio_play_buffdone;
-			play_prtd->play_done_cb.parg = substream;
+			 * set callback
+			 */
+			/* memset(&play_prtd->play_done_cb, 0, sizeof(play_prtd->play_done_cb)); */
+			/* play_prtd->play_done_cb.func = sun6i_audio_play_buffdone; */
+			/* play_prtd->play_done_cb.parg = substream; */
 			/*use the full buffer callback, maybe we should use the half buffer callback?*/
-			if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(play_prtd->play_done_cb))) {
-				sw_dma_release(play_prtd->dma_hdl);
-				return -EINVAL;
-			}
+			/* TODO: DMAengine */
+			/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(play_prtd->play_done_cb))) { */
+			/* 	sw_dma_release(play_prtd->dma_hdl); */
+			/* 	return -EINVAL; */
+			/* } */
 
 			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 			play_runtime->dma_bytes = play_totbytes;
@@ -1531,22 +1577,23 @@ static int sun6i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct
 			/*
 			 * requeset audio_capture dma handle(we don't care about the channel!)
 			 */
-			capture_prtd->dma_hdl = sw_dma_request(capture_prtd->params->name, DMA_WORK_MODE_SINGLE);
-			if (NULL == capture_prtd->dma_hdl) {
-				printk(KERN_ERR "failed to request audio_capture dma handle\n");
-				return -EINVAL;
-			}
+			/* TODO: DMAengine */
+			/* capture_prtd->dma_hdl = sw_dma_request(capture_prtd->params->name, DMA_WORK_MODE_SINGLE); */
+			/* if (NULL == capture_prtd->dma_hdl) { */
+			/* 	printk(KERN_ERR "failed to request audio_capture dma handle\n"); */
+			/* 	return -EINVAL; */
+			/* } */
 			/*
-		 	* set callback
-		 	*/
-			memset(&capture_prtd->capture_done_cb, 0, sizeof(capture_prtd->capture_done_cb));
-			capture_prtd->capture_done_cb.func = sun6i_audio_capture_buffdone;
-			capture_prtd->capture_done_cb.parg = substream;
+			 * set callback
+			 */
+			/* memset(&capture_prtd->capture_done_cb, 0, sizeof(capture_prtd->capture_done_cb)); */
+			/* capture_prtd->capture_done_cb.func = sun6i_audio_capture_buffdone; */
+			/* capture_prtd->capture_done_cb.parg = substream; */
 			/*use the full buffer callback, maybe we should use the half buffer callback?*/
-			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(capture_prtd->capture_done_cb))) {
-				sw_dma_release(capture_prtd->dma_hdl);
-				return -EINVAL;
-			}
+			/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(capture_prtd->capture_done_cb))) { */
+			/* 	sw_dma_release(capture_prtd->dma_hdl); */
+			/* 	return -EINVAL; */
+			/* } */
 
 			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 			capture_runtime->dma_bytes = capture_totbytes;
@@ -1573,362 +1620,362 @@ static int snd_sun6i_codec_hw_free(struct snd_pcm_substream *substream)
    	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		play_prtd = substream->runtime->private_data;
 		snd_pcm_set_runtime_buffer(substream, NULL);
-		if (play_prtd->params) {
-			/*
-			 * stop play dma transfer
-			 */
-			if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-				return -EINVAL;
-			}
-			/*
-			*	release play dma handle
-			*/
-			if (0 != sw_dma_release(play_prtd->dma_hdl)) {
-				return -EINVAL;
-			}
-			play_prtd->dma_hdl = (dm_hdl_t)NULL;
-			play_prtd->params = NULL;
-		}
+		/* if (play_prtd->params) { */
+		/* 	/\* */
+		/* 	 * stop play dma transfer */
+		/* 	 *\/ */
+		/* 	if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+		/* 		return -EINVAL; */
+		/* 	} */
+		/* 	/\* */
+		/* 	 *	release play dma handle */
+		/* 	 *\/ */
+		/* 	if (0 != sw_dma_release(play_prtd->dma_hdl)) { */
+		/* 		return -EINVAL; */
+		/* 	} */
+		/* 	play_prtd->dma_hdl = (dm_hdl_t)NULL; */
+		/* 	play_prtd->params = NULL; */
+		/* } */
    	} else {
 		capture_prtd = substream->runtime->private_data;
 		snd_pcm_set_runtime_buffer(substream, NULL);
-		if (capture_prtd->params) {
-			/*
-			 * stop capture dma transfer
-			 */
-			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-				return -EINVAL;
-			}
-			/*
-			*	release capture dma handle
-			*/
-			if (0 != sw_dma_release(capture_prtd->dma_hdl)) {
-				return -EINVAL;
-			}
-			capture_prtd->dma_hdl = (dm_hdl_t)NULL;
-			capture_prtd->params = NULL;
-		}
+		/* if (capture_prtd->params) { */
+		/* 	/\* */
+		/* 	 * stop capture dma transfer */
+		/* 	 *\/ */
+		/* 	if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+		/* 		return -EINVAL; */
+		/* 	} */
+		/* 	/\* */
+		/* 	 *	release capture dma handle */
+		/* 	 *\/ */
+		/* 	if (0 != sw_dma_release(capture_prtd->dma_hdl)) { */
+		/* 		return -EINVAL; */
+		/* 	} */
+		/* 	capture_prtd->dma_hdl = (dm_hdl_t)NULL; */
+		/* 	capture_prtd->params = NULL; */
+		/* } */
    	}
 	return 0;
 }
 
 static int snd_sun6i_codec_prepare(struct snd_pcm_substream	*substream)
 {
-	struct dma_config_t play_dma_config;
-	struct dma_config_t capture_dma_config;
+	/* struct dma_config_t play_dma_config; */
+	/* struct dma_config_t capture_dma_config; */
 	int play_ret = 0, capture_ret = 0;
 	unsigned int reg_val;
 	struct sun6i_playback_runtime_data *play_prtd = NULL;
 	struct sun6i_capture_runtime_data *capture_prtd = NULL;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (substream->runtime->rate) {
-			case 44100:
-				if (clk_set_rate(codec_pll2clk, 22579200)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 22579200)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29);
-				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 22050:
-				if (clk_set_rate(codec_pll2clk, 22579200)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 22579200)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 11025:
-				if (clk_set_rate(codec_pll2clk, 22579200)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 22579200)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 48000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 96000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29);
-				reg_val |=(7<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 192000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29);
-				reg_val |=(6<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 32000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(1<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 24000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 16000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(3<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 12000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			case 8000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29);
-				reg_val |=(5<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			default:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);		
-				break;
+		case 44100:
+			if (clk_set_rate(codec_pll2clk, 22579200)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 22579200)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29);
+			reg_val |=(0<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 22050:
+			if (clk_set_rate(codec_pll2clk, 22579200)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 22579200)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(2<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 11025:
+			if (clk_set_rate(codec_pll2clk, 22579200)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 22579200)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(4<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 48000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(0<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 96000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29);
+			reg_val |=(7<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 192000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29);
+			reg_val |=(6<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 32000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(1<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 24000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(2<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 16000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(3<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 12000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(4<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		case 8000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29);
+			reg_val |=(5<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		default:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(0<<29);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);		
+			break;
 		}
 		switch (substream->runtime->channels) {
-			case 1:
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val |=(1<<6);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);			
-				break;
-			case 2:
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(1<<6);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
-			default:
-				reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
-				reg_val &=~(1<<6);
-				writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
-				break;
+		case 1:
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val |=(1<<6);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);			
+			break;
+		case 2:
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(1<<6);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
+		default:
+			reg_val = readl(baseaddr + SUN6I_DAC_FIFOC);
+			reg_val &=~(1<<6);
+			writel(reg_val, baseaddr + SUN6I_DAC_FIFOC);
+			break;
 		}
 	} else {
 		switch (substream->runtime->rate) {
-			case 44100:
-				if (clk_set_rate(codec_pll2clk, 22579200)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 22579200)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 22050:
-				if (clk_set_rate(codec_pll2clk, 22579200)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 22579200)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 11025:
-				if (clk_set_rate(codec_pll2clk, 22579200)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 22579200)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 48000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 32000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(1<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 24000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(2<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 16000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(3<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 12000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(4<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			case 8000:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(5<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
-				break;
-			default:
-				if (clk_set_rate(codec_pll2clk, 24576000)) {
-					printk("set codec_pll2clk rate fail\n");
-				}
-				if (clk_set_rate(codec_moduleclk, 24576000)) {
-					printk("set codec_moduleclk rate fail\n");
-				}
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(7<<29); 
-				reg_val |=(0<<29);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);		
-				break;
+		case 44100:
+			if (clk_set_rate(codec_pll2clk, 22579200)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 22579200)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(0<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 22050:
+			if (clk_set_rate(codec_pll2clk, 22579200)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 22579200)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(2<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 11025:
+			if (clk_set_rate(codec_pll2clk, 22579200)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 22579200)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(4<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 48000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(0<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 32000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(1<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 24000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(2<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 16000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(3<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 12000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(4<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		case 8000:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(5<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+			break;
+		default:
+			if (clk_set_rate(codec_pll2clk, 24576000)) {
+				printk("set codec_pll2clk rate fail\n");
+			}
+			if (clk_set_rate(codec_moduleclk, 24576000)) {
+				printk("set codec_moduleclk rate fail\n");
+			}
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(7<<29); 
+			reg_val |=(0<<29);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);		
+			break;
 		}
 		switch (substream->runtime->channels) {
-			case 1:
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val |=(1<<7);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);			
+		case 1:
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val |=(1<<7);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);			
 			break;
-			case 2:
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(1<<7);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+		case 2:
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(1<<7);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
 			break;
-			default:
-				reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
-				reg_val &=~(1<<7);
-				writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
+		default:
+			reg_val = readl(baseaddr + SUN6I_ADC_FIFOC);
+			reg_val &=~(1<<7);
+			writel(reg_val, baseaddr + SUN6I_ADC_FIFOC);
 			break;
 		}
 	}
-   if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
    	 	play_prtd = substream->runtime->private_data;
    	 	/* return if this is a bufferless transfer e.g.
-	  	* codec <--> BT codec or GSM modem -- lg FIXME */       
+		 * codec <--> BT codec or GSM modem -- lg FIXME */       
    	 	if (!play_prtd->params) {
 			return 0;
 		}
@@ -1940,20 +1987,20 @@ static int snd_sun6i_codec_prepare(struct snd_pcm_substream	*substream)
 		} else {
 			play_ret = codec_headphone_play_open();
 		}
-		memset(&play_dma_config, 0, sizeof(play_dma_config));
-		play_dma_config.xfer_type = DMAXFER_D_BHALF_S_BHALF;
-		play_dma_config.address_type = DMAADDRT_D_IO_S_LN;
-		play_dma_config.para = 0;
-		play_dma_config.irq_spt = CHAN_IRQ_QD;
-		play_dma_config.src_addr = play_prtd->dma_start;
-		play_dma_config.dst_addr = play_prtd->params->dma_addr;
-		play_dma_config.byte_cnt = play_prtd->dma_period;
-		play_dma_config.bconti_mode = false;
-		play_dma_config.src_drq_type = DRQSRC_SDRAM;
-		play_dma_config.dst_drq_type = DRQDST_AUDIO_CODEC;
-		if (0 != sw_dma_config(play_prtd->dma_hdl, &play_dma_config, ENQUE_PHASE_NORMAL)) {
-			return -EINVAL;
-		}
+		/* memset(&play_dma_config, 0, sizeof(play_dma_config)); */
+		/* play_dma_config.xfer_type = DMAXFER_D_BHALF_S_BHALF; */
+		/* play_dma_config.address_type = DMAADDRT_D_IO_S_LN; */
+		/* play_dma_config.para = 0; */
+		/* play_dma_config.irq_spt = CHAN_IRQ_QD; */
+		/* play_dma_config.src_addr = play_prtd->dma_start; */
+		/* play_dma_config.dst_addr = play_prtd->params->dma_addr; */
+		/* play_dma_config.byte_cnt = play_prtd->dma_period; */
+		/* play_dma_config.bconti_mode = false; */
+		/* play_dma_config.src_drq_type = DRQSRC_SDRAM; */
+		/* play_dma_config.dst_drq_type = DRQDST_AUDIO_CODEC; */
+		/* if (0 != sw_dma_config(play_prtd->dma_hdl, &play_dma_config, ENQUE_PHASE_NORMAL)) { */
+		/* 	return -EINVAL; */
+		/* } */
 
 		play_prtd->dma_loaded = 0;
 		play_prtd->dma_pos = play_prtd->dma_start;
@@ -1974,21 +2021,21 @@ static int snd_sun6i_codec_prepare(struct snd_pcm_substream	*substream)
 		} else {
 	   		codec_capture_open();
 		}
-		memset(&capture_dma_config, 0, sizeof(capture_dma_config));
-		capture_dma_config.xfer_type = DMAXFER_D_BHALF_S_BHALF;/*16bit*/
-		capture_dma_config.address_type = DMAADDRT_D_LN_S_IO;
-		capture_dma_config.para = 0;
-		capture_dma_config.irq_spt = CHAN_IRQ_QD;
-		capture_dma_config.src_addr = capture_prtd->params->dma_addr;
-		capture_dma_config.dst_addr = capture_prtd->dma_start;
-		capture_dma_config.byte_cnt = capture_prtd->dma_period;
-		capture_dma_config.bconti_mode = false;
-		capture_dma_config.src_drq_type = DRQSRC_AUDIO_CODEC;
-		capture_dma_config.dst_drq_type = DRQDST_SDRAM;
+		/* memset(&capture_dma_config, 0, sizeof(capture_dma_config)); */
+		/* capture_dma_config.xfer_type = DMAXFER_D_BHALF_S_BHALF;/\*16bit*\/ */
+		/* capture_dma_config.address_type = DMAADDRT_D_LN_S_IO; */
+		/* capture_dma_config.para = 0; */
+		/* capture_dma_config.irq_spt = CHAN_IRQ_QD; */
+		/* capture_dma_config.src_addr = capture_prtd->params->dma_addr; */
+		/* capture_dma_config.dst_addr = capture_prtd->dma_start; */
+		/* capture_dma_config.byte_cnt = capture_prtd->dma_period; */
+		/* capture_dma_config.bconti_mode = false; */
+		/* capture_dma_config.src_drq_type = DRQSRC_AUDIO_CODEC; */
+		/* capture_dma_config.dst_drq_type = DRQDST_SDRAM; */
 
-		if (0 != sw_dma_config(capture_prtd->dma_hdl, &capture_dma_config, ENQUE_PHASE_NORMAL)) {
-			return -EINVAL;
-		}
+		/* if (0 != sw_dma_config(capture_prtd->dma_hdl, &capture_dma_config, ENQUE_PHASE_NORMAL)) { */
+		/* 	return -EINVAL; */
+		/* } */
 
 		capture_prtd->dma_loaded = 0;
 		capture_prtd->dma_pos = capture_prtd->dma_start;
@@ -2008,57 +2055,57 @@ static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 		play_prtd = substream->runtime->private_data;
 		spin_lock(&play_prtd->lock);
 		switch (cmd) {
-			case SNDRV_PCM_TRIGGER_START:
-			case SNDRV_PCM_TRIGGER_RESUME:
-			case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-				play_prtd->state |= ST_RUNNING;
-				codec_play_start();
-				/*
-				* start dma transfer
-				*/
-				if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_START, NULL)) {
-					return -EINVAL;
-				}
-				if (codec_speaker_enabled) {
-				} else {
-					/*set the default output is HPOUTL/R for pad headphone*/
-					codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
-					codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
-				}
-				break;
-			case SNDRV_PCM_TRIGGER_SUSPEND:
-				codec_play_stop();
-				/*
-				 * stop play dma transfer
-				 */
-				if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-					return -EINVAL;
-				}
-				break;
-			case SNDRV_PCM_TRIGGER_STOP:
-				play_prtd->state &= ~ST_RUNNING;
-				codec_play_stop();
-				/*
-				 * stop play dma transfer
-				 */
-				if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-					return -EINVAL;
-				}
-				break;
-			case SNDRV_PCM_TRIGGER_PAUSE_PUSH:							
-				play_prtd->state &= ~ST_RUNNING;
-				/*
-				 * stop play dma transfer
-				 */
-				if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-					return -EINVAL;
-				}
-				break;
-			default:
-				printk("error:%s,%d\n", __func__, __LINE__);
-				play_ret = -EINVAL;
-				break;
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			play_prtd->state |= ST_RUNNING;
+			codec_play_start();
+			/*
+			 * start dma transfer
+			 */
+			/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_START, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
+			if (codec_speaker_enabled) {
+			} else {
+				/*set the default output is HPOUTL/R for pad headphone*/
+				codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
+				codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
 			}
+			break;
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+			codec_play_stop();
+			/*
+			 * stop play dma transfer
+			 */
+			/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+			play_prtd->state &= ~ST_RUNNING;
+			codec_play_stop();
+			/*
+			 * stop play dma transfer
+			 */
+			/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
+			break;
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:							
+			play_prtd->state &= ~ST_RUNNING;
+			/*
+			 * stop play dma transfer
+			 */
+			/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
+			break;
+		default:
+			printk("error:%s,%d\n", __func__, __LINE__);
+			play_ret = -EINVAL;
+			break;
+		}
 		spin_unlock(&play_prtd->lock);
 	}else{
 		capture_prtd = substream->runtime->private_data;
@@ -2073,20 +2120,20 @@ static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			mdelay(200);
 			codec_wr_control(SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 			/*
-			* start dma transfer
-			*/
-			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_START, NULL)) {
-				return -EINVAL;
-			}
+			 * start dma transfer
+			 */
+			/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_START, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
 			break;
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 			codec_capture_stop();
 			/*
 			 * stop capture dma transfer
 			 */
-			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-				return -EINVAL;
-			}
+			/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:		 
 			capture_prtd->state &= ~ST_RUNNING;
@@ -2094,18 +2141,18 @@ static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 			/*
 			 * stop capture dma transfer
 			 */
-			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-				return -EINVAL;
-			}
+			/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
 			break;
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:		
 			capture_prtd->state &= ~ST_RUNNING;
 			/*
 			 * stop capture dma transfer
 			 */
-			if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) {
-				return -EINVAL;
-			}
+			/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
+			/* 	return -EINVAL; */
+			/* } */
 			break;
 		default:
 			printk("error:%s,%d\n", __func__, __LINE__);
@@ -2198,7 +2245,7 @@ static struct snd_pcm_ops sun6i_pcm_capture_ops = {
 	.pointer		= snd_sun6i_codec_pointer,
 };
 
-static int __init snd_card_sun6i_codec_pcm(struct sun6i_codec *sun6i_codec, int device)
+static int snd_card_sun6i_codec_pcm(struct sun6i_codec *sun6i_codec, int device)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -2232,14 +2279,16 @@ void snd_sun6i_codec_free(struct snd_card *card)
 
 }
 
-static int __init sun6i_codec_probe(struct platform_device *pdev)
+static int sun6i_codec_probe(struct platform_device *pdev)
 {
+	struct reset_control *rstc;
+	unsigned pa_gpio;
 	int err;
 	int ret;
 	struct snd_card *card;
 	struct sun6i_codec *chip;
 	struct codec_board_info  *db;    
-    printk("enter sun6i Audio codec!!!\n"); 
+	printk("enter sun6i Audio codec!!!\n"); 
 	/* register the soundcard */
 	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1, THIS_MODULE, sizeof(struct sun6i_codec), &card);
 	if (ret != 0) {
@@ -2255,7 +2304,7 @@ static int __init sun6i_codec_probe(struct platform_device *pdev)
 		goto nodev;
 
 	if ((err = snd_card_sun6i_codec_pcm(chip, 0)) < 0)
-	    goto nodev;
+		goto nodev;
 
 	strcpy(card->driver, "sun6i-CODEC");
 	strcpy(card->shortname, "audiocodec");
@@ -2271,39 +2320,46 @@ static int __init sun6i_codec_probe(struct platform_device *pdev)
 	db = kzalloc(sizeof(*db), GFP_KERNEL);
 	if (!db)
 		return -ENOMEM;
+
   	/* codec_apbclk */
-	codec_apbclk = clk_get(NULL, CLK_APB_ADDA);
-	if ((!codec_apbclk)||(IS_ERR(codec_apbclk))) {
+	codec_apbclk = devm_clk_get(&pdev->dev, "apb");
+	if (IS_ERR(codec_apbclk)) {
 		printk("try to get codec_apbclk failed!\n");
 	}
-	if (clk_enable(codec_apbclk)) {
+
+	if (clk_prepare_enable(codec_apbclk)) {
 		printk("enable codec_apbclk failed; \n");
 	}
-	/* codec_pll2clk */
-	codec_pll2clk = clk_get(NULL, CLK_SYS_PLL2);
-	if ((!codec_pll2clk)||(IS_ERR(codec_pll2clk))) {
-		printk("try to get codec_pll2clk failed!\n");
+
+	codec_pll2clk = devm_clk_get(&pdev->dev, "pll2");
+	if (IS_ERR(codec_pll2clk)) {
+		printk("try to get pll2 failed!\n");
 	}
-	if (clk_enable(codec_pll2clk)) {
-		printk("enable codec_pll2clk failed; \n");
-	}
+
 	/* codec_moduleclk */
-	codec_moduleclk = clk_get(NULL, CLK_MOD_ADDA);
-	if ((!codec_moduleclk)||(IS_ERR(codec_moduleclk))) {
+	codec_moduleclk = devm_clk_get(&pdev->dev, "mod");
+	if (IS_ERR(codec_moduleclk)) {
 		printk("try to get codec_moduleclk failed!\n");
 	}
+
 	if (clk_set_parent(codec_moduleclk, codec_pll2clk)) {
 		printk("err:try to set parent of codec_moduleclk to codec_pll2clk failed!\n");
 	}
+
 	if (clk_set_rate(codec_moduleclk, 24576000)) {
 		printk("err:set codec_moduleclk clock freq 24576000 failed!\n");
 	}
-	if (clk_enable(codec_moduleclk)) {
-		printk("err:open codec_moduleclk failed; \n");
+
+	clk_prepare_enable(codec_moduleclk);
+
+	rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(rstc)) {
+		dev_err(&pdev->dev, "Couldn't get reset controller\n");
+		return PTR_ERR(rstc);
 	}
-	if (clk_reset(codec_moduleclk, AW_CCU_CLK_NRESET)) {
-		printk("try to NRESET ve module clk failed!\n");
-	}
+
+	reset_control_deassert(rstc);
+
 	db->codec_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	db->dev = &pdev->dev;
 	if (db->codec_base_res == NULL) {
@@ -2320,120 +2376,31 @@ static int __init sun6i_codec_probe(struct platform_device *pdev)
 	}
 	baseaddr = ioremap(db->codec_base_res->start, 0x40);
 	if (baseaddr == NULL) {
-		 ret = -EINVAL;
-		 dev_err(db->dev,"failed to ioremap codec address reg\n");
-		 goto out;
+		ret = -EINVAL;
+		dev_err(db->dev,"failed to ioremap codec address reg\n");
+		goto out;
 	}
 	kfree(db);
 	codec_init();
 
-	/*get the default pa val(close)*/
-	type = script_get_item("audio_para", "audio_pa_ctrl", &item);
-	if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
-		printk("script_get_item return type err\n");
-		return -EFAULT;
-	}
-	/*request gpio*/
-	req_status = gpio_request(item.gpio.gpio, NULL);
-	if (0 != req_status) {
-		printk("request gpio failed!\n");
-	}
-	/*config gpio info of audio_pa_ctrl, the default pa config is close(check pa sys_config1.fex).*/
-	if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-		printk("sw_gpio_setall_range failed\n");
-	}
+	pa_gpio = of_get_named_gpio(pdev->dev.of_node, "pa-gpio", 0);
+	if (!gpio_is_valid(pa_gpio))
+		return -EINVAL;
+
+	ret = gpio_request(pa_gpio, "pa-ctrl");
+		
 
 	printk("sun6i Audio codec init end\n");
-	 return 0;
-	 out:
-		 dev_err(db->dev, "not found (%d).\n", ret);
-
-	 nodev:
-		snd_card_free(card);
-		return err;
-}
-
-#ifdef CONFIG_PM
-static int snd_sun6i_codec_suspend(struct platform_device *pdev,pm_message_t state)
-{
-	printk("[audio codec]:suspend\n");
-	item.gpio.data = 0;
-
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x0);
-	/*mute l_pa and r_pa*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-	mdelay(100);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
-	mdelay(100);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x0);
-
-	/*fix the resume blaze blaze noise*/
-	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
-	/*disable pa*/
-	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x0);
-	mdelay(400);
-
-	if (0 != sw_gpio_setall_range(&item.gpio, 1)) {
-		printk("sw_gpio_setall_range failed\n");
-	}
-
-	if ((NULL == codec_moduleclk)||(IS_ERR(codec_moduleclk))) {
-		printk("codec_moduleclk handle is invaled, just return\n");
-		return -EINVAL;
-	} else {
-		clk_disable(codec_moduleclk);
-	}
-	printk("[audio codec]:suspend end\n");
 	return 0;
+out:
+	dev_err(db->dev, "not found (%d).\n", ret);
+
+nodev:
+	snd_card_free(card);
+	return err;
 }
 
-static int snd_sun6i_codec_resume(struct platform_device *pdev)
-{
-	int headphone_vol = 0;
-	script_item_u val;
-	script_item_value_type_e  type;
-
-	type = script_get_item("audio_para", "headphone_vol", &val);
-	if (SCIRPT_ITEM_VALUE_TYPE_INT != type) {
-        printk("[audiocodec] type err!\n");
-    }
-	headphone_vol = val.val;
-
-	printk("[audio codec]:resume start\n");
-
-	if (clk_enable(codec_moduleclk)) {
-		printk("open codec_moduleclk failed; \n");
-	}
-
-	/*audio codec hardware bug. the HBIASADCEN bit must be enable in init*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
-
-	/*fix the resume blaze blaze noise*/
-	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
-	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
-	/*process for normal standby*/
-	if (NORMAL_STANDBY == standby_type) {
-	/*process for super standby*/
-	} else if(SUPER_STANDBY == standby_type) {
-		/*when TX FIFO available room less than or equal N,
-		* DRQ Requeest will be de-asserted.
-		*/
-		codec_wr_control(SUN6I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
-		/*write 1 to flush tx fifo*/
-		codec_wr_control(SUN6I_DAC_FIFOC, 0x1, DAC_FIFO_FLUSH, 0x1);
-		/*write 1 to flush rx fifo*/
-		codec_wr_control(SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
-	}
-
-	/*set HPVOL volume*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
-	printk("[audio codec]:resume end\n");
-	return 0;
-}
-#endif
-
-static int __devexit sun6i_codec_remove(struct platform_device *devptr)
+static int sun6i_codec_remove(struct platform_device *devptr)
 {
 	if ((NULL == codec_moduleclk)||(IS_ERR(codec_moduleclk))) {
 		printk("codec_moduleclk handle is invaled, just return\n");
@@ -2455,81 +2422,26 @@ static int __devexit sun6i_codec_remove(struct platform_device *devptr)
 	}
 	snd_card_free(platform_get_drvdata(devptr));
 	platform_set_drvdata(devptr, NULL);
-	return 0;
+        return 0;
 }
 
-static void sun6i_codec_shutdown(struct platform_device *devptr)
-{
-	/*mute l_pa and r_pa*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
-	/*disable pa*/
-	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x0);	
-	/*disable dac_l and dac_r*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACALEN, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACAREN, 0x0);
-	/*disable dac digital*/
-	codec_wr_control(SUN6I_DAC_DPC , 0x1, DAC_EN, 0x0);
-
-	/*disable Master microphone bias*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MBIASEN, 0x0);
-	/*disable mic1 pa*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x0);	
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1,  ADCREN, 0x0);
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1,  ADCLEN, 0x0);
-	/*disable adc digital part*/
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1,ADC_EN, 0x0);
-}
-
-static struct resource sun6i_codec_resource[] = {
-	[0] = {
-    	.start = CODEC_BASSADDRESS,
-        .end   = CODEC_BASSADDRESS + 0x40,
-		.flags = IORESOURCE_MEM,      
-	},
+static const struct of_device_id sun6i_codec_match[] = {
+	{ .compatible = "allwinner,sun6i-a31-audio-codec", },
+	{}
 };
+MODULE_DEVICE_TABLE(of, sun6i_codec_match);
 
-/*data relating*/
-static struct platform_device sun6i_device_codec = {
-	.name = "sun6i-codec",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(sun6i_codec_resource),
-	.resource = sun6i_codec_resource,
-};
 
-/*method relating*/
 static struct platform_driver sun6i_codec_driver = {
 	.probe		= sun6i_codec_probe,
 	.remove		= sun6i_codec_remove,
-	.shutdown   = sun6i_codec_shutdown,
-#ifdef CONFIG_PM
-	.suspend	= snd_sun6i_codec_suspend,
-	.resume		= snd_sun6i_codec_resume,
-#endif
 	.driver		= {
 		.name	= "sun6i-codec",
+		.of_match_table = sun6i_codec_match,
 	},
 };
 
-static int __init sun6i_codec_init(void)
-{
-	int err = 0;
-	if((platform_device_register(&sun6i_device_codec))<0)
-		return err;
-
-	if ((err = platform_driver_register(&sun6i_codec_driver)) < 0)
-		return err;
-	
-	return 0;
-}
-
-static void __exit sun6i_codec_exit(void)
-{
-	platform_driver_unregister(&sun6i_codec_driver);
-}
-
-module_init(sun6i_codec_init);
-module_exit(sun6i_codec_exit);
+module_platform_driver(sun6i_codec_driver);
 
 MODULE_DESCRIPTION("sun6i CODEC ALSA codec driver");
 MODULE_AUTHOR("huangxin");
