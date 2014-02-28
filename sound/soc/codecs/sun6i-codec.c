@@ -2425,6 +2425,38 @@ static int sun6i_codec_remove(struct platform_device *devptr)
         return 0;
 }
 
+static struct snd_soc_dai_driver sun6i_dai[] = {
+{
+	.name = "sun6i-codec",
+	.playback = {
+		.stream_name = "Playback",
+		.channels_min = 1,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_192000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE, SNDRV_PCM_FMTBIT_S24_LE,},
+	.capture = {
+		.stream_name = "Capture",
+		.channels_min = 2,
+		.channels_max = 2,
+		.rates = SNDRV_PCM_RATE_8000_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE, SNDRV_PCM_FMTBIT_S24_LE,},
+	.ops = &sun6i_dai_ops,
+},
+};
+
+static int sun6i_codec_probe(struct platform_device *pdev)
+{
+	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sun6i,
+				      sun6i_dai, ARRAY_SIZE(sun6i_dai));
+}
+
+static int sun6i_codec_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_codec(&pdev->dev);
+
+	return 0;
+}
+
 static const struct of_device_id sun6i_codec_match[] = {
 	{ .compatible = "allwinner,sun6i-a31-audio-codec", },
 	{}
