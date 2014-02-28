@@ -60,6 +60,17 @@ static bool codec_phonein_enabled = false;
 static bool codec_phoneout_enabled = false;
 static bool codec_speaker_enabled = false;
 
+struct sun6i_priv {
+	void __iomem	*base;
+
+	struct clk	*apb_clk;
+	struct clk	*mod_clk;
+
+	struct reset_control	*rstc;
+
+	unsigned	pa_gpio
+};
+
 struct sun6i_codec {
 	long samplerate;
 	struct snd_card *card;
@@ -113,64 +124,6 @@ struct sun6i_capture_runtime_data {
 	bool		capture_dma_flag;
 //	struct dma_cb_t capture_done_cb;
 	struct sun6i_pcm_dma_params	*params;
-};
-
-static struct snd_pcm_hardware sun6i_pcm_playback_hardware =
-{
-	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
-				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				   SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-				   SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.rates			= (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |SNDRV_PCM_RATE_11025 |\
-				   SNDRV_PCM_RATE_22050| SNDRV_PCM_RATE_32000 |\
-				   SNDRV_PCM_RATE_44100| SNDRV_PCM_RATE_48000 |SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000 |\
-				   SNDRV_PCM_RATE_KNOT),
-	.rate_min		= 8000,
-	.rate_max		= 192000,
-	.channels_min		= 1,
-	.channels_max		= 2,
-	.buffer_bytes_max	= 128*1024,
-	.period_bytes_min	= 1024*2,
-	.period_bytes_max	= 1024*32,
-	.periods_min		= 2,
-	.periods_max		= 8,
-	.fifo_size	     	= 32,
-};
-
-static struct snd_pcm_hardware sun6i_pcm_capture_hardware =
-{
-	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
-				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				   SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-				   SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME),
-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
-	.rates			= (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |SNDRV_PCM_RATE_11025 |\
-				   SNDRV_PCM_RATE_22050| SNDRV_PCM_RATE_32000 |\
-				   SNDRV_PCM_RATE_44100| SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |SNDRV_PCM_RATE_192000 |\
-				   SNDRV_PCM_RATE_KNOT),
-	.rate_min		= 8000,
-	.rate_max		= 192000,
-	.channels_min		= 1,
-	.channels_max		= 2,
-	.buffer_bytes_max	= 128*1024,
-	.period_bytes_min	= 1024*2,
-	.period_bytes_max	= 1024*32,
-	.periods_min		= 2,
-	.periods_max		= 8,
-	.fifo_size	     	= 32,
-};
-
-static unsigned int rates[] = {
-	8000,11025,12000,16000,
-	22050,24000,24000,32000,
-	44100,48000,96000,192000
-};
-
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
-	.count	= ARRAY_SIZE(rates),
-	.list	= rates,
-	.mask	= 0,
 };
 
 /**
@@ -2164,266 +2117,13 @@ static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-static int snd_sun6icard_capture_open(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int err;
-	struct sun6i_capture_runtime_data *capture_prtd;
-
-	capture_prtd = kzalloc(sizeof(struct sun6i_capture_runtime_data), GFP_KERNEL);
-	if (capture_prtd == NULL)
-		return -ENOMEM;
-
-	spin_lock_init(&capture_prtd->lock);
-	runtime->private_data = capture_prtd;
-	runtime->hw = sun6i_pcm_capture_hardware;
-
-	/* ensure that buffer size is a multiple of period size */
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
-		return err;
-	if ((err = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates)) < 0)
-		return err;
-        
-	return 0;
-}
-
-static int snd_sun6icard_capture_close(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	kfree(runtime->private_data);
-	return 0;
-}
-
-static int snd_sun6icard_playback_open(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int err;
-	struct sun6i_playback_runtime_data *play_prtd;
-	play_prtd = kzalloc(sizeof(struct sun6i_playback_runtime_data), GFP_KERNEL);
-	if (play_prtd == NULL)
-		return -ENOMEM;
-
-	spin_lock_init(&play_prtd->lock);
-	runtime->private_data = play_prtd;
-	runtime->hw = sun6i_pcm_playback_hardware;
-	
-	/* ensure that buffer size is a multiple of period size */
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
-		return err;
-	if ((err = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_constraints_rates)) < 0)
-		return err;
-
-	return 0;
-}
-
-static int snd_sun6icard_playback_close(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	kfree(runtime->private_data);
-	return 0;
-}
-
-static struct snd_pcm_ops sun6i_pcm_playback_ops = {
-	.open			= snd_sun6icard_playback_open,
-	.close			= snd_sun6icard_playback_close,
-	.ioctl			= snd_pcm_lib_ioctl,
-	.hw_params	    = sun6i_codec_pcm_hw_params,
-	.hw_free	    = snd_sun6i_codec_hw_free,
+static const struct snd_soc_dai_ops sun6i_dai_ops = {
+	.hw_params		= sun6i_codec_pcm_hw_params,
+	.hw_free		= snd_sun6i_codec_hw_free,
 	.prepare		= snd_sun6i_codec_prepare,
 	.trigger		= snd_sun6i_codec_trigger,
-	.pointer		= snd_sun6i_codec_pointer,
+	.pointer		= snd_sun6i_codec_pointer,	
 };
-
-static struct snd_pcm_ops sun6i_pcm_capture_ops = {
-	.open			= snd_sun6icard_capture_open,
-	.close			= snd_sun6icard_capture_close,
-	.ioctl			= snd_pcm_lib_ioctl,
-	.hw_params	    = sun6i_codec_pcm_hw_params,
-	.hw_free	    = snd_sun6i_codec_hw_free,
-	.prepare		= snd_sun6i_codec_prepare,
-	.trigger		= snd_sun6i_codec_trigger,
-	.pointer		= snd_sun6i_codec_pointer,
-};
-
-static int snd_card_sun6i_codec_pcm(struct sun6i_codec *sun6i_codec, int device)
-{
-	struct snd_pcm *pcm;
-	int err;
-
-	if ((err = snd_pcm_new(sun6i_codec->card, "M1 PCM", device, 1, 1, &pcm)) < 0){	
-		printk("error,the func is: %s,the line is:%d\n", __func__, __LINE__);
-		return err;
-	}
-
-	/*
-	 * this sets up our initial buffers and sets the dma_type to isa.
-	 * isa works but I'm not sure why (or if) it's the right choice
-	 * this may be too large, trying it for now
-	 */
-	 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV, 
-					      snd_dma_isa_data(),
-					      32*1024, 32*1024);
-
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &sun6i_pcm_playback_ops);
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &sun6i_pcm_capture_ops);
-	pcm->private_data = sun6i_codec;
-	pcm->info_flags = 0;
-	strcpy(pcm->name, "sun6i PCM");
-	/* setup DMA controller */
-	return 0;
-}
-
-void snd_sun6i_codec_free(struct snd_card *card)
-{
-
-}
-
-static int sun6i_codec_probe(struct platform_device *pdev)
-{
-	struct reset_control *rstc;
-	unsigned pa_gpio;
-	int err;
-	int ret;
-	struct snd_card *card;
-	struct sun6i_codec *chip;
-	struct codec_board_info  *db;    
-	printk("enter sun6i Audio codec!!!\n"); 
-	/* register the soundcard */
-	ret = snd_card_create(SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1, THIS_MODULE, sizeof(struct sun6i_codec), &card);
-	if (ret != 0) {
-		return -ENOMEM;
-	}
-
-	chip = card->private_data;
-	card->private_free = snd_sun6i_codec_free;
-	chip->card = card;
-	chip->samplerate = AUDIO_RATE_DEFAULT;
-
-	if ((err = snd_chip_codec_mixer_new(chip)))
-		goto nodev;
-
-	if ((err = snd_card_sun6i_codec_pcm(chip, 0)) < 0)
-		goto nodev;
-
-	strcpy(card->driver, "sun6i-CODEC");
-	strcpy(card->shortname, "audiocodec");
-	sprintf(card->longname, "sun6i-CODEC  Audio Codec");
-	snd_card_set_dev(card, &pdev->dev);
-	if ((err = snd_card_register(card)) == 0) {
-		printk( KERN_INFO "sun6i audio support initialized\n" );
-		platform_set_drvdata(pdev, card);
-	}else{
-		printk("err:%s,line:%d\n", __func__, __LINE__);
-		return err;
-	}
-	db = kzalloc(sizeof(*db), GFP_KERNEL);
-	if (!db)
-		return -ENOMEM;
-
-  	/* codec_apbclk */
-	codec_apbclk = devm_clk_get(&pdev->dev, "apb");
-	if (IS_ERR(codec_apbclk)) {
-		printk("try to get codec_apbclk failed!\n");
-	}
-
-	if (clk_prepare_enable(codec_apbclk)) {
-		printk("enable codec_apbclk failed; \n");
-	}
-
-	codec_pll2clk = devm_clk_get(&pdev->dev, "pll2");
-	if (IS_ERR(codec_pll2clk)) {
-		printk("try to get pll2 failed!\n");
-	}
-
-	/* codec_moduleclk */
-	codec_moduleclk = devm_clk_get(&pdev->dev, "mod");
-	if (IS_ERR(codec_moduleclk)) {
-		printk("try to get codec_moduleclk failed!\n");
-	}
-
-	if (clk_set_parent(codec_moduleclk, codec_pll2clk)) {
-		printk("err:try to set parent of codec_moduleclk to codec_pll2clk failed!\n");
-	}
-
-	if (clk_set_rate(codec_moduleclk, 24576000)) {
-		printk("err:set codec_moduleclk clock freq 24576000 failed!\n");
-	}
-
-	clk_prepare_enable(codec_moduleclk);
-
-	rstc = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(rstc)) {
-		dev_err(&pdev->dev, "Couldn't get reset controller\n");
-		return PTR_ERR(rstc);
-	}
-
-	reset_control_deassert(rstc);
-
-	db->codec_base_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	db->dev = &pdev->dev;
-	if (db->codec_base_res == NULL) {
-		ret = -ENOENT;
-		printk("err:codec insufficient resources\n");
-		goto out;
-	}
-	/* codec address remap */
-	db->codec_base_req = request_mem_region(db->codec_base_res->start, 0x40, pdev->name);
-	if (db->codec_base_req == NULL) {
-		ret = -EIO;
-		printk("err:cannot claim codec address reg area\n");
-		goto out;
-	}
-	baseaddr = ioremap(db->codec_base_res->start, 0x40);
-	if (baseaddr == NULL) {
-		ret = -EINVAL;
-		dev_err(db->dev,"failed to ioremap codec address reg\n");
-		goto out;
-	}
-	kfree(db);
-	codec_init();
-
-	pa_gpio = of_get_named_gpio(pdev->dev.of_node, "pa-gpio", 0);
-	if (!gpio_is_valid(pa_gpio))
-		return -EINVAL;
-
-	ret = gpio_request(pa_gpio, "pa-ctrl");
-		
-
-	printk("sun6i Audio codec init end\n");
-	return 0;
-out:
-	dev_err(db->dev, "not found (%d).\n", ret);
-
-nodev:
-	snd_card_free(card);
-	return err;
-}
-
-static int sun6i_codec_remove(struct platform_device *devptr)
-{
-	if ((NULL == codec_moduleclk)||(IS_ERR(codec_moduleclk))) {
-		printk("codec_moduleclk handle is invaled, just return\n");
-		return -EINVAL;
-	} else {
-		clk_disable(codec_moduleclk);
-	}
-	if ((NULL == codec_pll2clk)||(IS_ERR(codec_pll2clk))) {
-		printk("codec_pll2clk handle is invaled, just return\n");
-		return -EINVAL;
-	} else {
-		clk_put(codec_pll2clk);
-	}
-	if ((NULL == codec_apbclk)||(IS_ERR(codec_apbclk))) {
-		printk("codec_apbclk handle is invaled, just return\n");
-		return -EINVAL;
-	} else {
-		clk_put(codec_apbclk);
-	}
-	snd_card_free(platform_get_drvdata(devptr));
-	platform_set_drvdata(devptr, NULL);
-        return 0;
-}
 
 static struct snd_soc_dai_driver sun6i_dai[] = {
 {
@@ -2433,19 +2133,99 @@ static struct snd_soc_dai_driver sun6i_dai[] = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE, SNDRV_PCM_FMTBIT_S24_LE,},
+		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 2,
+		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_48000,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE, SNDRV_PCM_FMTBIT_S24_LE,},
+		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 	.ops = &sun6i_dai_ops,
 },
 };
 
+static int sun6i_soc_probe(struct snd_soc_codec *codec)
+{
+	codec_init();
+
+	return 0;
+}
+
+static int sun6i_soc_remove(struct snd_soc_codec *codec)
+{
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_sun6i = {
+	.probe		= sun6i_soc_probe,
+	.remove		= sun6i_soc_remove,
+
+	.controls	= codec_snd_controls,
+	.num_controls	= ARRAY_SIZE(codec_snd_controls),
+};
+
 static int sun6i_codec_probe(struct platform_device *pdev)
 {
+	struct sun6i_priv *sun6i;
+	struct resource *res;
+	struct clk *pll2;
+	int ret;
+
+	sun6i = devm_kzalloc(&pdev->dev, sizeof(struct sun6i_priv), GFP_KERNEL);
+	if (!sun6i)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, sun6i);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	sun6i->base = devm_ioremap_resource(&pdev->dev, res);
+	if (!sun6i->base)
+		return PTR_ERR(sun6i->base);
+
+	sun6i->apb_clk = devm_clk_get(&pdev->dev, "apb");
+	if (IS_ERR(sun6i->apb_clk)) {
+		dev_err(&pdev->dev, "Couldn't get the APB clock\n");
+		return PTR_ERR(sun6i->apb_clk);
+	}
+
+	sun6i->mod_clk = devm_clk_get(&pdev->dev, "mod");
+	if (IS_ERR(sun6i->mod_clk)) {
+		dev_err(&pdev->dev, "Couldn't get the module clock\n");
+		return PTR_ERR(sun6i->mod_clk);
+	}
+
+	pll2 = clk_get(&pdev->dev, "pll2");
+	if (IS_ERR(pll2)) {
+		dev_err(&pdev->dev, "Couldn't get the PLL2 clock\n");
+		return PTR_ERR(pll2);
+	}
+
+	ret = clk_set_parent(sun6i->mod_clk, pll2);
+	if (ret) {
+		clk_put(pll2);
+		dev_err(&pdev->dev, "Couldn't reparent module clock\n");
+		return ret;
+	}
+	clk_put(pll2);
+
+	ret = clk_set_rate(sun6i->mod_clk, 24576000);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't change the module clock rate\n");
+		return ret;
+	}
+
+	sun6i->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(sun6i->rstc)) {
+		dev_err(&pdev->dev, "Couldn't get the reset controller\n");
+		return PTR_ERR(sun6i->rstc);
+	}
+
+	sun6i->pa_gpio = of_get_named_gpio(pdev->dev.of_node, "pa-gpio", 0);
+	if (!gpio_is_valid(sun6i->pa_gpio)) {
+		dev_err(&pdev->dev, "Couldn't get the PA GPIO\n");
+		return sun6i->pa_gpio;
+	}
+
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sun6i,
 				      sun6i_dai, ARRAY_SIZE(sun6i_dai));
 }
