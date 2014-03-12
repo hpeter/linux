@@ -43,7 +43,6 @@
 #include "sun6i-codec.h"
 
 struct clk *codec_apbclk,*codec_pll2clk,*codec_moduleclk;
-static unsigned int capture_dmadst = 0;
 static unsigned int play_dmasrc = 0;
 
 /*for pa gpio ctrl*/
@@ -68,7 +67,7 @@ struct sun6i_priv {
 
 	struct reset_control	*rstc;
 
-	unsigned	pa_gpio
+	unsigned	pa_gpio;
 };
 
 struct sun6i_codec {
@@ -85,16 +84,6 @@ typedef struct codec_board_info {
 
 	spinlock_t	lock;
 } codec_board_info_t;
-
-static struct sun6i_pcm_dma_params sun6i_codec_pcm_stereo_play = {
-	.name		= "audio_play",
-	.dma_addr	= CODEC_BASSADDRESS + SUN6I_DAC_TXDATA,//send data address	
-};
-
-static struct sun6i_pcm_dma_params sun6i_codec_pcm_stereo_capture = {
-	.name   	= "audio_capture",
-	.dma_addr	= CODEC_BASSADDRESS + SUN6I_ADC_RXDATA,//accept data address	
-};
 
 struct sun6i_playback_runtime_data {
 	spinlock_t lock;
@@ -597,11 +586,6 @@ static int codec_capture_stop(void)
 
 	return 0;
 }
-
-static int codec_dev_free(struct snd_device *device)
-{
-	return 0;
-};
 
 /*
  *	codec_lineinin_enabled == 1, open the linein in.
@@ -1288,331 +1272,9 @@ static const struct snd_kcontrol_new codec_snd_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Audio linein in", 0, codec_get_lineinin, codec_set_lineinin),    			/*101*/
 };
 
-int snd_chip_codec_mixer_new(struct sun6i_codec *chip)
-{
-	struct snd_card *card;
-	int idx, err;
 
-	static struct snd_device_ops ops = {
-  		.dev_free	=	codec_dev_free,
-  	};
-  	card = chip->card;
-	for (idx = 0; idx < ARRAY_SIZE(codec_snd_controls); idx++) {
-		if ((err = snd_ctl_add(card, snd_ctl_new1(&codec_snd_controls[idx],chip))) < 0) {
-			return err;
-		}
-	}
-	
-	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, chip, &ops)) < 0) {
-		return err;
-	}
-
-	return 0;
-}
-
-static void sun6i_pcm_enqueue(struct snd_pcm_substream *substream)
-{	
-	int play_ret = 0, capture_ret = 0;
-	struct sun6i_playback_runtime_data *play_prtd = NULL;
-	struct sun6i_capture_runtime_data *capture_prtd = NULL;
-	dma_addr_t play_pos = 0, capture_pos = 0;
-	unsigned long play_len = 0, capture_len = 0;
-	unsigned int play_limit = 0, capture_limit = 0;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		play_prtd = substream->runtime->private_data;
-		play_pos = play_prtd->dma_pos;
-		play_len = play_prtd->dma_period;
-		play_limit = play_prtd->dma_limit; 
-		while (play_prtd->dma_loaded < play_limit) {
-			if ((play_pos + play_len) > play_prtd->dma_end) {
-				play_len  = play_prtd->dma_end - play_pos;
-			}
-			/*because dma enqueue the first buffer while config dma,so at the beginning, can't add the buffer*/
-			if (play_prtd->play_dma_flag) {
-				/* TODO: Do a proper dmaengine call */
-				/* play_ret = sw_dma_enqueue(play_prtd->dma_hdl, play_pos, play_prtd->params->dma_addr, play_len, ENQUE_PHASE_NORMAL); */
-			}
-			play_prtd->play_dma_flag = true;
-			if (play_ret == 0) {
-				play_prtd->dma_loaded++;
-				play_pos += play_prtd->dma_period;
-				if(play_pos >= play_prtd->dma_end)
-					play_pos = play_prtd->dma_start;
-			} else {
-				break;
-			}	  
-		}
-		play_prtd->dma_pos = play_pos;
-	} else {
-		capture_prtd = substream->runtime->private_data;
-		capture_pos = capture_prtd->dma_pos;
-		capture_len = capture_prtd->dma_period;
-		capture_limit = capture_prtd->dma_limit;
-		while (capture_prtd->dma_loaded < capture_limit) {
-			if ((capture_pos + capture_len) > capture_prtd->dma_end) {
-				capture_len  = capture_prtd->dma_end - capture_pos;
-			}
-			/*because dma enqueue the first buffer while config dma,so at the beginning, can't add the buffer*/
-			if (capture_prtd->capture_dma_flag) {
-				/* TODO: Do a proper dmaengine call */
-				/* capture_ret = sw_dma_enqueue(capture_prtd->dma_hdl, capture_prtd->params->dma_addr, capture_pos, capture_len, ENQUE_PHASE_NORMAL); */
-			}
-			capture_prtd->capture_dma_flag = true;
-			if (capture_ret == 0) {
-				capture_prtd->dma_loaded++;
-				capture_pos += capture_prtd->dma_period;
-				if (capture_pos >= capture_prtd->dma_end)
-					capture_pos = capture_prtd->dma_start;
-			} else {
-				break;
-			}	  
-		}
-		capture_prtd->dma_pos = capture_pos;
-	}
-}
-
-/* TODO: Switch to proper DMAengine callbacks */
-/* static u32 sun6i_audio_capture_buffdone(dm_hdl_t dma_hdl, void *parg, */
-/* 					enum dma_cb_cause_e result) */
-/* { */
-/* 	struct sun6i_capture_runtime_data *capture_prtd = NULL; */
-/* 	struct snd_pcm_substream *substream = NULL; */
-
-/* 	if ((result == DMA_CB_ABORT) || (parg == NULL)) { */
-/* 		return 0; */
-/* 	} */
-/* 	substream = parg; */
-/* 	capture_prtd = substream->runtime->private_data; */
-/* 	if ((substream) && (capture_prtd)) { */
-/* 		snd_pcm_period_elapsed(substream); */
-/* 	} else { */
-/* 		return 0; */
-/* 	} */
-
-/* 	spin_lock(&capture_prtd->lock); */
-/* 	{ */
-/* 		capture_prtd->dma_loaded--; */
-/* 		sun6i_pcm_enqueue(substream); */
-/* 	} */
-/* 	spin_unlock(&capture_prtd->lock); */
-
-/* 	return 0; */
-/* } */
-
-/* static u32 sun6i_audio_play_buffdone(dm_hdl_t dma_hdl, void *parg, */
-/* 				     enum dma_cb_cause_e result) */
-/* { */
-/* 	struct sun6i_playback_runtime_data *play_prtd = NULL; */
-/* 	struct snd_pcm_substream *substream = NULL; */
-	
-/* 	if ((result == DMA_CB_ABORT) || (parg == NULL)) { */
-/* 		return 0; */
-/* 	} */
-/* 	substream = parg; */
-/* 	play_prtd = substream->runtime->private_data; */
-/* 	if ((substream) && (play_prtd)) { */
-/* 		snd_pcm_period_elapsed(substream); */
-/* 	} else { */
-/* 		return 0; */
-/* 	} */
-
-/* 	spin_lock(&play_prtd->lock); */
-/* 	{ */
-/* 		play_prtd->dma_loaded--; */
-/* 		sun6i_pcm_enqueue(substream); */
-/* 	} */
-/* 	spin_unlock(&play_prtd->lock); */
-
-/* 	return 0; */
-/* } */
-
-static snd_pcm_uframes_t snd_sun6i_codec_pointer(struct snd_pcm_substream *substream)
-{	
-	unsigned long capture_res = 0;
-	struct sun6i_playback_runtime_data *play_prtd = NULL;
-	struct sun6i_capture_runtime_data *capture_prtd = NULL;
-	struct snd_pcm_runtime *play_runtime = NULL;
-	struct snd_pcm_runtime *capture_runtime = NULL;
-	snd_pcm_uframes_t play_offset = 0;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		play_runtime = substream->runtime;
-		play_prtd = play_runtime->private_data;
-		spin_lock(&play_prtd->lock);
-
-		/* TODO: Switch to dmaengine */
-		/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_GET_CUR_SRC_ADDR, &play_dmasrc)) { */
-		/* 	printk("err:%s, line:%d\n", __func__, __LINE__); */
-		/* } */
-
-		play_offset = bytes_to_frames(play_runtime, play_dmasrc - play_runtime->dma_addr);
-		spin_unlock(&play_prtd->lock);
-		if (play_offset >= play_runtime->buffer_size) {
-			play_offset = 0;
-		}
-		return play_offset;
-	} else {
-		capture_runtime = substream->runtime;
-		capture_prtd = capture_runtime->private_data;
-		spin_lock(&capture_prtd->lock);
-
-		/* TODO: Switch to dmaengine */
-		/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_GET_CUR_DST_ADDR, &capture_dmadst)) { */
-		/* 	printk("err:%s, line:%d\n", __func__, __LINE__); */
-		/* } */
-		capture_res = capture_dmadst - capture_prtd->dma_start;
-
-		if (capture_res >= snd_pcm_lib_buffer_bytes(substream)) {
-			if (capture_res == snd_pcm_lib_buffer_bytes(substream))
-				capture_res = 0;
-		}
-		spin_unlock(&capture_prtd->lock);
-		return bytes_to_frames(substream->runtime, capture_res);
-	}
-}
-
-static int sun6i_codec_pcm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params)
-{
-	struct snd_pcm_runtime *play_runtime = NULL, *capture_runtime = NULL;
-	struct sun6i_playback_runtime_data *play_prtd = NULL;
-	struct sun6i_capture_runtime_data *capture_prtd = NULL;
-	unsigned long play_totbytes = 0, capture_totbytes = 0;
-	
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-	  	play_runtime = substream->runtime;
-		play_prtd = play_runtime->private_data;
-		play_totbytes = params_buffer_bytes(params);
-		snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-		if (play_prtd->params == NULL) {
-			play_prtd->params = &sun6i_codec_pcm_stereo_play;
-			/*
-			 * requeset audio dma handle(we don't care about the channel!)
-			 */
-			/* TODO: DMAengine */
-			/* play_prtd->dma_hdl = sw_dma_request(play_prtd->params->name, DMA_WORK_MODE_SINGLE); */
-			/* if (NULL == play_prtd->dma_hdl) { */
-			/* 	printk(KERN_ERR "failed to request audio_play dma handle\n"); */
-			/* 	return -EINVAL; */
-			/* } */
-			/*
-			 * set callback
-			 */
-			/* memset(&play_prtd->play_done_cb, 0, sizeof(play_prtd->play_done_cb)); */
-			/* play_prtd->play_done_cb.func = sun6i_audio_play_buffdone; */
-			/* play_prtd->play_done_cb.parg = substream; */
-			/*use the full buffer callback, maybe we should use the half buffer callback?*/
-			/* TODO: DMAengine */
-			/* if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(play_prtd->play_done_cb))) { */
-			/* 	sw_dma_release(play_prtd->dma_hdl); */
-			/* 	return -EINVAL; */
-			/* } */
-
-			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-			play_runtime->dma_bytes = play_totbytes;
-   			spin_lock_irq(&play_prtd->lock);
-			play_prtd->dma_loaded = 0;
-			play_prtd->dma_limit = play_runtime->hw.periods_min;
-			play_prtd->dma_period = params_period_bytes(params);
-			play_prtd->dma_start = play_runtime->dma_addr;	
-
-			play_dmasrc = play_prtd->dma_start;
-			play_prtd->dma_pos = play_prtd->dma_start;
-			play_prtd->dma_end = play_prtd->dma_start + play_totbytes;
-			spin_unlock_irq(&play_prtd->lock);
-		}
-	} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		capture_runtime = substream->runtime;
-		capture_prtd = capture_runtime->private_data;
-		capture_totbytes = params_buffer_bytes(params);
-		snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-		if (capture_prtd->params == NULL) {
-			capture_prtd->params = &sun6i_codec_pcm_stereo_capture;			
-			/*
-			 * requeset audio_capture dma handle(we don't care about the channel!)
-			 */
-			/* TODO: DMAengine */
-			/* capture_prtd->dma_hdl = sw_dma_request(capture_prtd->params->name, DMA_WORK_MODE_SINGLE); */
-			/* if (NULL == capture_prtd->dma_hdl) { */
-			/* 	printk(KERN_ERR "failed to request audio_capture dma handle\n"); */
-			/* 	return -EINVAL; */
-			/* } */
-			/*
-			 * set callback
-			 */
-			/* memset(&capture_prtd->capture_done_cb, 0, sizeof(capture_prtd->capture_done_cb)); */
-			/* capture_prtd->capture_done_cb.func = sun6i_audio_capture_buffdone; */
-			/* capture_prtd->capture_done_cb.parg = substream; */
-			/*use the full buffer callback, maybe we should use the half buffer callback?*/
-			/* if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_SET_QD_CB, (void *)&(capture_prtd->capture_done_cb))) { */
-			/* 	sw_dma_release(capture_prtd->dma_hdl); */
-			/* 	return -EINVAL; */
-			/* } */
-
-			snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
-			capture_runtime->dma_bytes = capture_totbytes;
-			spin_lock_irq(&capture_prtd->lock);
-			capture_prtd->dma_loaded = 0;
-			capture_prtd->dma_limit = capture_runtime->hw.periods_min;
-			capture_prtd->dma_period = params_period_bytes(params);
-			capture_prtd->dma_start = capture_runtime->dma_addr;
-			capture_dmadst = capture_prtd->dma_start;
-			capture_prtd->dma_pos = capture_prtd->dma_start;
-			capture_prtd->dma_end = capture_prtd->dma_start + capture_totbytes;
-			spin_unlock_irq(&capture_prtd->lock);
-		}
-	} else {
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int snd_sun6i_codec_hw_free(struct snd_pcm_substream *substream)
-{
-	struct sun6i_playback_runtime_data *play_prtd = NULL;
-	struct sun6i_capture_runtime_data *capture_prtd = NULL;	
-   	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		play_prtd = substream->runtime->private_data;
-		snd_pcm_set_runtime_buffer(substream, NULL);
-		/* if (play_prtd->params) { */
-		/* 	/\* */
-		/* 	 * stop play dma transfer */
-		/* 	 *\/ */
-		/* 	if (0 != sw_dma_ctl(play_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
-		/* 		return -EINVAL; */
-		/* 	} */
-		/* 	/\* */
-		/* 	 *	release play dma handle */
-		/* 	 *\/ */
-		/* 	if (0 != sw_dma_release(play_prtd->dma_hdl)) { */
-		/* 		return -EINVAL; */
-		/* 	} */
-		/* 	play_prtd->dma_hdl = (dm_hdl_t)NULL; */
-		/* 	play_prtd->params = NULL; */
-		/* } */
-   	} else {
-		capture_prtd = substream->runtime->private_data;
-		snd_pcm_set_runtime_buffer(substream, NULL);
-		/* if (capture_prtd->params) { */
-		/* 	/\* */
-		/* 	 * stop capture dma transfer */
-		/* 	 *\/ */
-		/* 	if (0 != sw_dma_ctl(capture_prtd->dma_hdl, DMA_OP_STOP, NULL)) { */
-		/* 		return -EINVAL; */
-		/* 	} */
-		/* 	/\* */
-		/* 	 *	release capture dma handle */
-		/* 	 *\/ */
-		/* 	if (0 != sw_dma_release(capture_prtd->dma_hdl)) { */
-		/* 		return -EINVAL; */
-		/* 	} */
-		/* 	capture_prtd->dma_hdl = (dm_hdl_t)NULL; */
-		/* 	capture_prtd->params = NULL; */
-		/* } */
-   	}
-	return 0;
-}
-
-static int snd_sun6i_codec_prepare(struct snd_pcm_substream	*substream)
+static int sun6i_prepare(struct snd_pcm_substream *substream,
+			 struct snd_soc_dai *dai)
 {
 	/* struct dma_config_t play_dma_config; */
 	/* struct dma_config_t capture_dma_config; */
@@ -1959,7 +1621,7 @@ static int snd_sun6i_codec_prepare(struct snd_pcm_substream	*substream)
 		play_prtd->dma_pos = play_prtd->dma_start;
 		play_prtd->play_dma_flag = false;
 		/* enqueue dma buffers */
-		sun6i_pcm_enqueue(substream);
+		/* sun6i_pcm_enqueue(substream); */
 		return play_ret;
 	} else {
 		capture_prtd = substream->runtime->private_data;                          
@@ -1994,16 +1656,18 @@ static int snd_sun6i_codec_prepare(struct snd_pcm_substream	*substream)
 		capture_prtd->dma_pos = capture_prtd->dma_start;
 		capture_prtd->capture_dma_flag = false;
 		/* enqueue dma buffers */
-		sun6i_pcm_enqueue(substream);
+		/* sun6i_pcm_enqueue(substream); */
 		return capture_ret;
 	}
 }
 
-static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
+static int sun6i_trigger(struct snd_pcm_substream *substream, int cmd,
+			 struct snd_soc_dai *dai)
 {
 	int play_ret = 0, capture_ret = 0;
 	struct sun6i_playback_runtime_data *play_prtd = NULL;
 	struct sun6i_capture_runtime_data *capture_prtd = NULL;
+
 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
 		play_prtd = substream->runtime->private_data;
 		spin_lock(&play_prtd->lock);
@@ -2118,11 +1782,8 @@ static int snd_sun6i_codec_trigger(struct snd_pcm_substream *substream, int cmd)
 }
 
 static const struct snd_soc_dai_ops sun6i_dai_ops = {
-	.hw_params		= sun6i_codec_pcm_hw_params,
-	.hw_free		= snd_sun6i_codec_hw_free,
-	.prepare		= snd_sun6i_codec_prepare,
-	.trigger		= snd_sun6i_codec_trigger,
-	.pointer		= snd_sun6i_codec_pointer,	
+	.prepare		= sun6i_prepare,
+	.trigger		= sun6i_trigger,
 };
 
 static struct snd_soc_dai_driver sun6i_dai[] = {
