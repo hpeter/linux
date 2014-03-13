@@ -250,77 +250,6 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 	return 0;
 }
 
-/**
-*	codec_reset - reset the codec
-* @codec	SoC Audio Codec
-* Reset the codec, set the register of codec default value
-* Return 0 for success
-*/
-static  void codec_init(void)
-{
-	/* int headphone_vol = 0; */
-	/* int headphone_direct_used = 0; */
-	/* script_item_u val; */
-	/* script_item_value_type_e  type; */
-	/* enum sw_ic_ver  codec_chip_ver; */
-
-	/* codec_chip_ver = sw_get_ic_ver(); */
-	/* type = script_get_item("audio_para", "headphone_direct_used", &val); */
-	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
-	/* 	printk("[audiocodec] type err!\n"); */
-	/* } */
-
-	/* TODO: Retrieved from FEX, and need to figure out what is the revision about */
-	/* headphone_direct_used = val.val; */
-	/* if (headphone_direct_used && (codec_chip_ver != MAGIC_VER_A31A)) { */
-	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3); */
-	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1); */
-	/* } else { */
-		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
-		codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
-	/* } */
-
-	/*audio codec hardware bug. the HBIASADCEN bit must be enable in init*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
-
-	/*mute l_pa and r_pa.*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
-
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
-
-	/*fix the init blaze blaze noise*/
-	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
-	/*enable pa*/
-	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
-	/*set HPCOM control as direct driver for floating*/
-	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
-
-	/*when TX FIFO available room less than or equal N,
-	* DRQ Requeest will be de-asserted.
-	*/
-	codec_wr_control(SUN6I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
-
-	/*write 1 to flush tx fifo*/
-	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, DAC_FIFO_FLUSH, 0x1);
-	/*write 1 to flush rx fifo*/
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
-	
-	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
-	
-	/* type = script_get_item("audio_para", "headphone_vol", &val); */
-	/* if (SCIRPT_ITEM_VALUE_TYPE_INT != type) { */
-	/* 	printk("[audiocodec] type err!\n"); */
-	/* } */
-
-	/* headphone_vol = val.val; */
-
-	/* set HPVOL volume */
-	/* TODO: Used to be retrieved by FEX */
-	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x3b);
-}
-
 static int codec_pa_play_open(void)
 {
 	/* int pa_vol = 0; */
@@ -1781,7 +1710,35 @@ static int sun6i_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
+static int sun6i_set_sysclk(struct snd_soc_dai *dai,
+			    int clk_id, unsigned int freq, int dir)
+{
+	return 0;
+}
+static int sun6i_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
+			 unsigned int freq_in, unsigned int freq_out)
+{
+	return 0;
+}
+
+static int sun6i_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	return 0;
+}
+
+static int sun6i_digital_mute(struct snd_soc_dai *dai, int mute)
+{
+	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, !!mute);
+	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, !!mute);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops sun6i_dai_ops = {
+	.set_sysclk		= sun6i_set_sysclk,
+	.set_pll		= sun6i_set_pll,
+	.set_fmt		= sun6i_set_fmt,
+	.digital_mute		= sun6i_digital_mute,
 	.prepare		= sun6i_prepare,
 	.trigger		= sun6i_trigger,
 };
@@ -1807,7 +1764,57 @@ static struct snd_soc_dai_driver sun6i_dai[] = {
 
 static int sun6i_soc_probe(struct snd_soc_codec *codec)
 {
-	codec_init();
+	/* HPCOMM is off and output is floating (WTF?!) */
+	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+	/* Disable headphone output */
+	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
+
+	/*
+	 * Enable Headset MIC Bias Current sensor & ADC
+	 * Due to an hardware bug, it seems to be only possible at init
+	 */
+	codec_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
+
+	/*
+	 * Mute Playback Left and Right channels
+	 * Also disables the associated mixer and DAC
+	 */
+	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
+	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
+
+	/* Disable Playback Lineouts */ 
+	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
+	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+
+	/*
+	 * Fix the init blaze noise
+	 * Really have to find more details about that
+	 */
+	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
+
+	/* Enable Power Amplifier for both headphone channels */
+	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
+
+	/* set HPCOM control as direct driver for floating (Redundant?) */
+	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+
+	/*
+	 * Stop doing DMA requests whenever there's only 16 samples
+	 * left available in the TX FIFO.
+	 */
+	codec_wr_control(SUN6I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
+
+	/* Flush TX FIFO */
+	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, DAC_FIFO_FLUSH, 0x1);
+
+	/* Flush RX FIFO */
+	codec_wr_control(SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
+
+	/* Use a 32 bits FIR */
+	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
+
+	/* Set HPVOL default volume */
+	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x3b);
 
 	return 0;
 }
