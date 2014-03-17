@@ -305,9 +305,6 @@
 #define ADC_RIGHT_DECAY_TIME_COEFF_SET	(0)
 
 
-
-void  __iomem *baseaddr;
-
 #define AUDIO_RATE_DEFAULT	44100
 #define ST_RUNNING		(1<<0)
 #define ST_OPENED		(1<<1)
@@ -316,9 +313,6 @@ struct sun6i_pcm_dma_params {
 	char *name;		
 	dma_addr_t dma_addr;	
 };
-
-#define codec_rdreg(reg)	    readl((baseaddr+(reg)))
-#define codec_wrreg(reg,val)  writel((val),(baseaddr+(reg)))
 
 /*
 * Convenience kcontrol builders
