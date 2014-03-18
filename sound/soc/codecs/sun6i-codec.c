@@ -140,7 +140,7 @@ int codec_rd_control(u32 reg, u32 bit, u32 *val)
 	return 0;
 }
 
-static int codec_pa_play_open(void)
+static int codec_pa_play_open(struct sun6i_priv *sun6i)
 {
 	/* int pa_vol = 0; */
 	/* script_item_u val; */
@@ -167,49 +167,49 @@ static int codec_pa_play_open(void)
 	/* } */
 
 	/*mute l_pa and r_pa*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
 
 	/*enable dac digital*/
-	codec_wr_control(SUN6I_DAC_DPC, 0x1, DAC_EN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_DPC, 0x1, DAC_EN, 0x1);
 	/*set TX FIFO send drq level*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x7f, TX_TRI_LEVEL, 0xf);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x7f, TX_TRI_LEVEL, 0xf);
 	/*set TX FIFO MODE*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, TX_FIFO_MODE, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, TX_FIFO_MODE, 0x1);
 
 	//send last sample when dac fifo under run
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, LAST_SE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, LAST_SE, 0x0);
 
 	/*enable dac_l and dac_r*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACALEN, 0x1);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACAREN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, DACALEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, DACAREN, 0x1);
 
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x1);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x1);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x1);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x1);
 
 	/* TODO: This used to be retrieved by FEX */
 	/* if (!pa_double_used) { */
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x1);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x1);
 	/* } else { */
-	/* 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0); */
-	/* 	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0); */
+	/* 	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0); */
+	/* 	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0); */
 	/* } */
 
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
 
-	codec_wr_control(SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x2);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x2);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x2);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x2);
 
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
 	
 	/*
 	 * TODO: This used to be retrieved by FEX.
 	 * The script has nice comments explaining what values mean in term of dB output
 	 */
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x19);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x19);
 
 	/* TODO: Configure the GPIO using gpiolib */
 	/* mdelay(3); */
@@ -223,7 +223,7 @@ static int codec_pa_play_open(void)
 	return 0;
 }
 
-static int codec_headphone_play_open(void)
+static int codec_headphone_play_open(struct sun6i_priv *sun6i)
 {
 	int headphone_vol = 0;
 	/* script_item_u val; */
@@ -239,38 +239,38 @@ static int codec_headphone_play_open(void)
 	headphone_vol = 0x3b;
 
 	/*mute l_pa and r_pa*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
 
-	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
 	/*enable dac digital*/
-	codec_wr_control(SUN6I_DAC_DPC, 0x1, DAC_EN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_DPC, 0x1, DAC_EN, 0x1);
 
 	/*set TX FIFO send drq level*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x7f, TX_TRI_LEVEL, 0xf);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x7f, TX_TRI_LEVEL, 0xf);
 	/*set TX FIFO MODE*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, TX_FIFO_MODE, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, TX_FIFO_MODE, 0x1);
 
 	//send last sample when dac fifo under run
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, LAST_SE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, LAST_SE, 0x0);
 
 	/*enable dac_l and dac_r*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACALEN, 0x1);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACAREN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, DACALEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, DACAREN, 0x1);
 
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
 
-	codec_wr_control(SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x2);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x2);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x2);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x2);
 
 	/*set HPVOL volume*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
 
 	return 0;
 }
 
-static int codec_capture_open(void)
+static int codec_capture_open(struct sun6i_priv *sun6i)
 {
 	int cap_vol = 0;
 	/* script_item_u val; */
@@ -286,40 +286,40 @@ static int codec_capture_open(void)
 	cap_vol = 5;
 
 	/*enable mic1 pa*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x1);
 	/*mic1 gain 36dB,if capture volume is too small, enlarge the mic1boost*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x7,MIC1BOOST,cap_vol);//36db
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x7,MIC1BOOST,cap_vol);//36db
 	/*enable Master microphone bias*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MBIASEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, MBIASEN, 0x1);
 
 	/*enable Right MIC1 Boost stage*/
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTEMIC1BOOST, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, RADCMIXMUTEMIC1BOOST, 0x1);
 	/*enable Left MIC1 Boost stage*/
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTEMIC1BOOST, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, LADCMIXMUTEMIC1BOOST, 0x1);
 	/*enable adc_r adc_l analog*/
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1,  ADCREN, 0x1);
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1,  ADCLEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1,  ADCREN, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1,  ADCLEN, 0x1);
 	/*set RX FIFO mode*/
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1, RX_FIFO_MODE, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, RX_FIFO_MODE, 0x1);
 	/*set RX FIFO rec drq level*/
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1f, RX_TRI_LEVEL, 0xf);
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1f, RX_TRI_LEVEL, 0xf);
 	/*enable adc digital part*/
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1,ADC_EN, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1,ADC_EN, 0x1);
 
 	return 0;
 }
 
-static int codec_play_start(void)
+static int codec_play_start(struct sun6i_priv *sun6i)
 {
 	/*enable dac drq*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, DAC_DRQ, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, DAC_DRQ, 0x1);
 	/*DAC FIFO Flush,Write '1' to flush TX FIFO, self clear to '0'*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, DAC_FIFO_FLUSH, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, DAC_FIFO_FLUSH, 0x1);
 
 	return 0;
 }
 
-static int codec_play_stop(void)
+static int codec_play_stop(struct sun6i_priv *sun6i)
 {
 	int i = 0;
 	int headphone_vol = 0;
@@ -335,31 +335,31 @@ static int codec_play_stop(void)
 	/* TODO: This used to be retrieved by FEX*/
 	headphone_vol = 0x3b;
 
-	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
 	for (i = 0; i < headphone_vol; i++) {
 		/*set HPVOL volume*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
 		headphone_vol = headphone_vol - i;
 		mdelay(1);
 		i++;
 		if (i > headphone_vol-1) {
-			codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
+			codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
 			break;
 		}
 	}
 	/*mute l_pa and r_pa*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
 
 	/*disable dac drq*/
-	codec_wr_control(SUN6I_DAC_FIFOC ,0x1, DAC_DRQ, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC ,0x1, DAC_DRQ, 0x0);
 
 	/*disable dac_l and dac_r*/
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACALEN, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, DACAREN, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, DACALEN, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, DACAREN, 0x0);
 
 	/*disable dac digital*/
-	codec_wr_control(SUN6I_DAC_DPC ,  0x1, DAC_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_DPC ,  0x1, DAC_EN, 0x0);
 
 	/* TODO: Configure the GPIO */
 	/* item.gpio.data = 0; */
@@ -368,40 +368,40 @@ static int codec_play_stop(void)
 	/* 	printk("sw_gpio_setall_range failed\n"); */
 	/* } */
 
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
 
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0);
 
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
 	
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, PHONEOUTS2, 0x0);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, PHONEOUTS3, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, PHONEOUTS2, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, PHONEOUTS3, 0x0);
 	return 0;
 }
 
-static int codec_capture_start(void)
+static int codec_capture_start(struct sun6i_priv *sun6i)
 {
 	/*enable adc drq*/
-	codec_wr_control(SUN6I_ADC_FIFOC ,0x1, ADC_DRQ, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC ,0x1, ADC_DRQ, 0x1);
 	return 0;
 }
 
-static int codec_capture_stop(void)
+static int codec_capture_stop(struct sun6i_priv *sun6i)
 {
 	/*disable adc digital part*/
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1,ADC_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1,ADC_EN, 0x0);
 	/*disable adc drq*/
-	codec_wr_control(SUN6I_ADC_FIFOC ,0x1, ADC_DRQ, 0x0);	
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC ,0x1, ADC_DRQ, 0x0);	
 	/*disable mic1 pa*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, MIC1AMPEN, 0x0);
 	/*disable Master microphone bias*/
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, MBIASEN, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, MBIASEN, 0x0);
 	/*disable adc_r adc_l analog*/
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1, ADCREN, 0x0);
-	codec_wr_control(SUN6I_ADC_ACTL, 0x1, ADCLEN, 0x0);
+	codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, ADCREN, 0x0);
+	codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, ADCLEN, 0x0);
 
 	return 0;
 }
@@ -413,20 +413,23 @@ static int codec_capture_stop(void)
 static int codec_set_lineinin(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
+
 	codec_lineinin_enabled = ucontrol->value.integer.value[0];
 
 	if (codec_lineinin_enabled) {
 		/*select LINEINR*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x4);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x4);
 		/*select LINEINL*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x4);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x4);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x1);
 	} else {
-		codec_wr_control(SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, RMIXMUTE, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x7f, LMIXMUTE, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LMIXEN, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RMIXEN, 0x0);
 	}
 	return 0;
 }
@@ -441,18 +444,21 @@ static int codec_get_lineinin(struct snd_kcontrol *kcontrol,
 static int codec_set_lineincap(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
+
 	codec_lineincap_enabled = ucontrol->value.integer.value[0];
 
 	if (codec_lineincap_enabled) {
 		/*enable LINEINR ADC*/
-		codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTELINEINR, 0x1);
+		codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, RADCMIXMUTELINEINR, 0x1);
 		/*enable LINEINL ADC*/
-		codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTELINEINL, 0x1);
+		codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, LADCMIXMUTELINEINL, 0x1);
 	} else {
 		/*disable LINEINR ADC*/
-		codec_wr_control(SUN6I_ADC_ACTL, 0x1, RADCMIXMUTELINEINR, 0x0);
+		codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, RADCMIXMUTELINEINR, 0x0);
 		/*disable LINEINL ADC*/
-		codec_wr_control(SUN6I_ADC_ACTL, 0x1, LADCMIXMUTELINEINL, 0x0);
+		codec_wr_control(sun6i, SUN6I_ADC_ACTL, 0x1, LADCMIXMUTELINEINL, 0x0);
 	}
 	return 0;
 }
@@ -471,6 +477,9 @@ static int codec_get_lineincap(struct snd_kcontrol *kcontrol,
 static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
+
 	int pa_vol = 0x19;
 	/* script_item_u val; */
 	/* script_item_value_type_e  type; */
@@ -499,15 +508,15 @@ static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 	codec_speakerout_enabled = ucontrol->value.integer.value[0];
 
 	if (codec_speakerout_enabled) {
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x1);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x1);
 
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x1);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x1);
 
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, pa_vol);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, pa_vol);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
 
 		/* TODO: Set GPIO */
 		/* mdelay(3); */
@@ -518,14 +527,14 @@ static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 		/* } */
 		/* mdelay(62); */
 	} else {
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
 
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_SRC_SEL, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_SRC_SEL, 0x0);
 
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
 
 		/* TODO: Set GPIO */
 		/* item.gpio.data = 0; */
@@ -552,6 +561,9 @@ static int codec_get_speakerout(struct snd_kcontrol *kcontrol,
 static int codec_set_headphoneout(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
+
 	int headphone_vol = 0x3b;
 	/* script_item_u val; */
 	/* script_item_value_type_e  type; */
@@ -567,24 +579,24 @@ static int codec_set_headphoneout(struct snd_kcontrol *kcontrol,
 
 	if (codec_headphoneout_enabled) {
 		/*unmute l_pa and r_pa*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
 		/*select the analog mixer input source*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
-		codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
+		codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
 		/*set HPVOL volume*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
 	} else {
 		/*mute l_pa and r_pa*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
 		/*select the default dac input source*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
-		codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
 		/*set HPVOL volume*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
 	}
 
 	return 0;
@@ -604,6 +616,9 @@ static int codec_get_headphoneout(struct snd_kcontrol *kcontrol,
 static int codec_set_earpieceout(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
+
 	int headphone_vol = 0x3b;
 	/* script_item_u val; */
 	/* script_item_value_type_e  type; */
@@ -619,28 +634,28 @@ static int codec_set_earpieceout(struct snd_kcontrol *kcontrol,
 
 	if (codec_earpieceout_enabled) {
 		/*unmute l_pa and r_pa*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
 		/*select the analog mixer input source*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
 		/*select HPL inverting output*/
-		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x1);
+		codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x1);
 
-		codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
+		codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
 		/*set HPVOL volume*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
 	} else {
 		/*mute l_pa and r_pa*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
-		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
 
-		codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
+		codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x0);
 		/*set HPVOL volume*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x0);
 	}
 
 	return 0;
@@ -662,6 +677,9 @@ static int codec_get_earpieceout(struct snd_kcontrol *kcontrol,
 static int codec_set_spk(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
+
 	int ret = 0;
 	int headphone_vol = 0x3b;
 	/* script_item_u val; */
@@ -678,23 +696,23 @@ static int codec_set_spk(struct snd_kcontrol *kcontrol,
 	/* headphone_direct_used = val.val; */
 
 	/* if (headphone_direct_used && (codec_chip_ver != MAGIC_VER_A31A)) { */
-	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3); */
-	/* 	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1); */
+	/* 	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x3); */
+	/* 	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x1); */
 	/* } else { */
-		codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
-		codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
+		codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+		codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
 	/* } */
 
 	codec_speaker_enabled = ucontrol->value.integer.value[0];
 	if (codec_speaker_enabled) {
-		ret = codec_pa_play_open();
+		ret = codec_pa_play_open(sun6i);
 	} else {
 		/* item.gpio.data = 0; */
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x0);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
-		codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1f, LINEOUT_VOL, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
+		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
 
 		/* TODO: GPIOlib */
 		/* /\*config gpio info of audio_pa_ctrl close*\/ */
@@ -703,9 +721,9 @@ static int codec_set_spk(struct snd_kcontrol *kcontrol,
 		/* } */
 
 		/*unmute l_pa and r_pa*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
-		codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
-		codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, 0x1);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, 0x1);
+		codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, ZERO_CROSS_EN, 0x1);
 
 		/* TODO: Retrieved by FEX */
 		/* type = script_get_item("audio_para", "headphone_vol", &val); */
@@ -715,7 +733,7 @@ static int codec_set_spk(struct snd_kcontrol *kcontrol,
 		/* headphone_vol = val.val; */
 
 		/*set HPVOL volume*/
-		codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
+		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, headphone_vol);
 	}
 	return 0;
 }
@@ -1021,18 +1039,20 @@ static int sun6i_prepare(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (codec_speaker_enabled)
-			return codec_pa_play_open();
+			return codec_pa_play_open(sun6i);
 		else
-			return codec_headphone_play_open();
+			return codec_headphone_play_open(sun6i);
 	} else {
-		return codec_capture_open();
+		return codec_capture_open(sun6i);
 	}
+
+	return 0;
 }
 
 static void sun6i_codec_hp_chan_mute(struct sun6i_priv *sun6i, bool left, bool right)
 {
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, left ? 0 : 1);
-	codec_wr_control(SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, right ? 0 : 1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, left ? 0 : 1);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, right ? 0 : 1);
 }
 
 // TODO: Should be removed
@@ -1048,7 +1068,7 @@ static int sun6i_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			codec_play_start();
+			codec_play_start(sun6i);
 
 			if (!codec_speaker_enabled)
 				/* set the default output is HPOUTL/R for pad headphone */
@@ -1058,7 +1078,7 @@ static int sun6i_trigger(struct snd_pcm_substream *substream, int cmd,
 
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_STOP:
-			codec_play_stop();
+			codec_play_stop(sun6i);
 			break;
 
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:							
@@ -1073,19 +1093,19 @@ static int sun6i_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_START:
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-			codec_capture_start();
+			codec_capture_start(sun6i);
 
 			/*hardware fifo delay*/
 			mdelay(200);
-			codec_wr_control(SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
+			codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 			break;
 
 		case SNDRV_PCM_TRIGGER_SUSPEND:
-			codec_capture_stop();
+			codec_capture_stop(sun6i);
 			break;
 
 		case SNDRV_PCM_TRIGGER_STOP:		 
-			codec_capture_stop();
+			codec_capture_stop(sun6i);
 			break;
 
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:		
@@ -1157,15 +1177,15 @@ static int sun6i_soc_probe(struct snd_soc_codec *codec)
 	struct sun6i_priv *sun6i = snd_soc_codec_get_drvdata(codec);
 
 	/* HPCOMM is off and output is floating (WTF?!) */
-	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
 	/* Disable headphone output */
-	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
+	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
 
 	/*
 	 * Enable Headset MIC Bias Current sensor & ADC
 	 * Due to an hardware bug, it seems to be only possible at init
 	 */
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
 
 	/*
 	 * Mute Playback Left and Right channels
@@ -1174,38 +1194,38 @@ static int sun6i_soc_probe(struct snd_soc_codec *codec)
 	sun6i_codec_hp_chan_mute(sun6i, true, true);
 
 	/* Disable Playback Lineouts */ 
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
-	codec_wr_control(SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
+	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
 
 	/*
 	 * Fix the init blaze noise
 	 * Really have to find more details about that
 	 */
-	codec_wr_control(SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
 
 	/* Enable Power Amplifier for both headphone channels */
-	codec_wr_control(SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
+	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x1, HPPAEN, 0x1);
 
 	/* set HPCOM control as direct driver for floating (Redundant?) */
-	codec_wr_control(SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
 
 	/*
 	 * Stop doing DMA requests whenever there's only 16 samples
 	 * left available in the TX FIFO.
 	 */
-	codec_wr_control(SUN6I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x3, DRA_LEVEL,0x3);
 
 	/* Flush TX FIFO */
-	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, DAC_FIFO_FLUSH, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x1, DAC_FIFO_FLUSH, 0x1);
 
 	/* Flush RX FIFO */
-	codec_wr_control(SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 
 	/* Use a 32 bits FIR */
-	codec_wr_control(SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
 
 	/* Set HPVOL default volume */
-	codec_wr_control(SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x3b);
+	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x3f, VOLUME, 0x3b);
 
 	return 0;
 }
