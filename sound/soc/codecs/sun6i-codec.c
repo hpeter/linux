@@ -56,48 +56,18 @@ struct sun6i_priv {
 	bool			speaker_playback;
 	bool			speaker_active;
 
-	unsigned		pa_gpio;
+	struct regmap		*regmap;
 };
 
-/**
-* codec_wrreg_bits - update codec register bits
-* @reg: codec register
-* @mask: register mask
-* @value: new value
-*
-* Writes new register value.
-* Return 1 for change else 0.
-*/
-int codec_wrreg_bits(struct sun6i_priv *sun6i, unsigned short reg, unsigned int	mask,	unsigned int value)
+void codec_wr_control(struct sun6i_priv *sun6i, u32 reg, u32 mask, u32 shift, u32 val)
 {
-	u32 reg_val;
-
-	reg_val = readl(sun6i->base + reg);
-	reg_val &= ~mask;
-	reg_val |= value;
-	writel(reg_val, sun6i->base + reg);	
-
-	return 0;
-}
-
-int codec_wr_control(struct sun6i_priv *sun6i, u32 reg, u32 mask, u32 shift, u32 val)
-{
-	u32 reg_val;
-	reg_val = val << shift;
-	mask = mask << shift;
-	codec_wrreg_bits(sun6i, reg, mask, reg_val);
-	return 0;
+	regmap_update_bits(sun6i->regmap, reg, mask << shift, val << shift);
 }
 
 static void sun6i_codec_hp_chan_mute(struct sun6i_priv *sun6i, bool left, bool right)
 {
 	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPPA_MUTE, left ? 0 : 1);
 	codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPPA_MUTE, right ? 0 : 1);
-}
-
-int codec_rd_control(u32 reg, u32 bit, u32 *val)
-{
-	return 0;
 }
 
 static int codec_pa_play_open(struct sun6i_priv *sun6i)
@@ -475,10 +445,6 @@ static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 		/* Set the speaker amplifier source to their associated mixers */
 		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x1);
 		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x1);
-
-		mdelay(3);
-		gpio_set_value(sun6i->pa_gpio, 1);
-		mdelay(62);
 	} else {
 		/* Disable lineout */
 		codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
@@ -491,8 +457,6 @@ static int codec_set_speakerout(struct snd_kcontrol *kcontrol,
 		/* Set the speaker amplifier source to the DACs */
 		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, LHPIS, 0x0);
 		codec_wr_control(sun6i, SUN6I_DAC_ACTL, 0x1, RHPIS, 0x0);
-
-		gpio_set_value(sun6i->pa_gpio, 0);
 	}
 
 	return 0;
@@ -1189,12 +1153,18 @@ static struct snd_soc_codec_driver soc_codec_dev_sun6i = {
 	.num_controls	= ARRAY_SIZE(codec_snd_controls),
 };
 
+static struct regmap_config sun6i_codec_regmap_config = {
+	.reg_bits	= 32,
+	.reg_stride	= 4,
+	.val_bits	= 32,
+	.max_register	= 0x94,
+	.fast_io	= true,
+};
+
 static int sun6i_codec_probe(struct platform_device *pdev)
 {
 	struct sun6i_priv *sun6i;
 	struct resource *res;
-	struct clk *pll2;
-	int ret;
 
 	sun6i = devm_kzalloc(&pdev->dev, sizeof(struct sun6i_priv), GFP_KERNEL);
 	if (!sun6i)
@@ -1219,36 +1189,17 @@ static int sun6i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(sun6i->mod_clk);
 	}
 
-	pll2 = clk_get(&pdev->dev, "pll2");
-	if (IS_ERR(pll2)) {
-		dev_err(&pdev->dev, "Couldn't get the PLL2 clock\n");
-		return PTR_ERR(pll2);
-	}
-
-	ret = clk_set_parent(sun6i->mod_clk, pll2);
-	if (ret) {
-		clk_put(pll2);
-		dev_err(&pdev->dev, "Couldn't reparent module clock\n");
-		return ret;
-	}
-	clk_put(pll2);
-
-	ret = clk_set_rate(sun6i->mod_clk, 24576000);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't change the module clock rate\n");
-		return ret;
-	}
-
 	sun6i->rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(sun6i->rstc)) {
 		dev_err(&pdev->dev, "Couldn't get the reset controller\n");
 		return PTR_ERR(sun6i->rstc);
 	}
 
-	sun6i->pa_gpio = of_get_named_gpio(pdev->dev.of_node, "pa-gpio", 0);
-	if (!gpio_is_valid(sun6i->pa_gpio)) {
-		dev_err(&pdev->dev, "Couldn't get the PA GPIO\n");
-		return sun6i->pa_gpio;
+	sun6i->regmap = devm_regmap_init_mmio(&pdev->dev, sun6i->base,
+					      &sun6i_codec_regmap_config);
+	if (IS_ERR(sun6i->regmap)) {
+		dev_err(&pdev->dev, "Couldn't register MMIO regmap\n");
+		return PTR_ERR(sun6i->regmap);
 	}
 
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sun6i,
