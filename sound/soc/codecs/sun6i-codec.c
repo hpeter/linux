@@ -1230,6 +1230,13 @@ static int sun6i_codec_probe(struct platform_device *pdev)
 		return PTR_ERR(sun6i->regmap);
 	}
 
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, &sun6i_dmaengine_pcm_config,
+					      NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "Couldn't register DMAengine PCM layer\n");
+		return ret;
+	}
+
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sun6i,
 				      sun6i_dai, ARRAY_SIZE(sun6i_dai));
 }
