@@ -1183,7 +1183,49 @@ static struct snd_soc_codec_driver soc_codec_dev_sun6i = {
 	.num_dapm_routes	= ARRAY_SIZE(sun6i_dapm_routes),
 };
 
+static const struct snd_soc_dapm_widget sun6i_card_dapm_widgets[] = {
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+};
+
+static const struct snd_soc_dapm_route sun6i_card_route[] = {
+	{ "Headphone Jack",	NULL,	"HPL" },
+	{ "Headphone Jack",	NULL,	"HPR" },
+};
+
+static int sun6i_dai_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+
+	return 0;
+}
+
+static struct snd_soc_dai_link sun6i_card_dai[] = {
+	{
+		.name		= "sun6i_codec",
+		.stream_name	= "sun6i_codec",
+		.codec_name	= "sun6i-codec.0",
+
+		.cpu_dai_name	= "snd-soc-dummy-dai",
+		.platform_name	= "sun6i-codec.0",
+		.codec_dai_name = "sun6i-codec",
+		.init		= sun6i_dai_init,
+	},
+};
+
 static struct snd_soc_card sun6i_codec_card = {
+	.name	= "sun6i-codec",
+	.owner	= THIS_MODULE,
+
+	.dai_link = sun6i_card_dai,
+	.num_links = ARRAY_SIZE(sun6i_card_dai),
+
+	.dapm_widgets = sun6i_card_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sun6i_card_dapm_widgets),
+	.dapm_routes = sun6i_card_route,
+	.num_dapm_routes = ARRAY_SIZE(sun6i_card_route),
 };
 
 static const struct snd_dmaengine_pcm_config sun6i_dmaengine_pcm_config = {

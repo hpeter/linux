@@ -871,6 +871,7 @@ config SND_SOC_MC13783
 
 config SND_SOC_SUN6I
 	select REGMAP_MMIO
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	tristate
 
 config SND_SOC_ML26124
