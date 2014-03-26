@@ -142,17 +142,12 @@ static const struct snd_kcontrol_new sun6i_right_hp_mux_controls =
 static const struct snd_soc_dapm_widget sun6i_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC", "Playback", SUN6I_DAC_DIGITAL_CTRL_REG, 31, 0),
 
-	SND_SOC_DAPM_DAC("Left DAC", "Playback", SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("Right DAC", "Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("Left DAC", "Playback", SUN6I_DAC_ANALOG_CTRL_REG, 30, 0),
+	SND_SOC_DAPM_DAC("Right DAC", "Playback", SUN6I_DAC_ANALOG_CTRL_REG, 31, 0),
 
 	/* Power up of the Headphone amplifier */
 	SND_SOC_DAPM_PGA("Headphone Amplifier",
 			 SUN6I_POWER_AMPLIFIER_CTRL_REG, 31, 0, NULL, 0),
-
-	SND_SOC_DAPM_SWITCH("Left DAC Switch",
-			    SUN6I_DAC_ANALOG_CTRL_REG, 30, 1, 0),
-	SND_SOC_DAPM_SWITCH("Right DAC Switch",
-			    SUN6I_DAC_ANALOG_CTRL_REG, 31, 1, 0),
 
 	SND_SOC_DAPM_PGA("Left Headphone Amplifier",
 			 SND_SOC_NOPM, 0, 0, NULL, 0),
@@ -182,9 +177,9 @@ static const struct snd_soc_dapm_widget sun6i_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sun6i_dapm_routes[] = {
-	/* Virtual DACs */
-	{ "Left DAC", "Left DAC Switch", "DAC" },
-	{ "Right DAC", "Right DAC Switch", "DAC" },
+	/* DACs */
+	{ "Left DAC", NULL, "DAC" },
+	{ "Right DAC", NULL, "DAC" },
 
 	/* Left Mixer */
 	{ "Left Output Mixer", NULL, "Left DAC" },
