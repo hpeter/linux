@@ -102,7 +102,6 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_STA350 if I2C
 	select SND_SOC_STA529 if I2C
 	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
-	select SND_SOC_SUN6I if ARCH_SUNXI
 	select SND_SOC_TAS2552 if I2C
 	select SND_SOC_TAS5086 if I2C
 	select SND_SOC_TAS571X if I2C
@@ -867,11 +866,6 @@ config SND_SOC_MAX9877
 	tristate
 
 config SND_SOC_MC13783
-	tristate
-
-config SND_SOC_SUN6I
-	select REGMAP_MMIO
-	select SND_SOC_GENERIC_DMAENGINE_PCM
 	tristate
 
 config SND_SOC_ML26124
