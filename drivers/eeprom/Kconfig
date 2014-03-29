@@ -1,0 +1,18 @@
+menuconfig EEPROM
+	bool "EEPROM Support"
+	help
+	  Support for EEPROM alike devices.
+
+	  This framework is designed to provide a generic interface to EEPROM
+	  from both the Linux Kernel and the userspace.
+
+	  If unsure, say no.
+
+if EEPROM
+
+config EEPROM_DEBUG
+	bool "EEPROM debug support"
+	help
+	  Say yes here to enable debugging support.
+
+endif

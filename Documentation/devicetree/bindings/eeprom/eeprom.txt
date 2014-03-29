@@ -1,0 +1,48 @@
+= EEPROM Data Device Tree Bindings =
+
+This binding is intended to represent the location of hardware
+configuration data stored in EEPROMs.
+
+On a significant proportion of boards, the manufacturer has stored
+some data on an EEPROM-like device, for the OS to be able to retrieve
+these informations and act upon it. Obviously, the OS has to know
+about where to retrieve these data from, and where they are stored on
+the storage device.
+
+This document is here to document this.
+
+= Data providers =
+
+Required properties:
+#eeprom-cells:	Number of cells in an eeprom specifier; The common
+		case is 2.
+
+For example:
+
+	at24: eeprom@42 {
+		#eeprom-cells = <2>;
+	};
+
+= Data consumers =
+
+Required properties:
+
+eeproms: List of phandle and data cell specifier triplet, one triplet
+	 for each data cell the device might be interested in. The
+	 triplet consists of the phandle to the eeprom provider, then
+	 the offset in byte within that storage device, and the length
+	 in byte of the data we care about.
+
+Optional properties:
+
+eeprom-names: List of data cell name strings sorted in the same order
+ 	      as the resets property. Consumers drivers will use
+ 	      eeprom-names to differentiate between multiple cells,
+ 	      and hence being able to know what these cells are for.
+
+For example:
+
+	device {
+		eeproms = <&at24 14 42>;
+		eeprom-names = "soc-rev-id";
+	};
