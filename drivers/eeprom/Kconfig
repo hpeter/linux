@@ -15,4 +15,14 @@ config EEPROM_DEBUG
 	help
 	  Say yes here to enable debugging support.
 
+config EEPROM_SUNXI_SID
+	depends on ARCH_SUNXI
+	tristate "Allwinner SoCs SID support"
+	help
+	  This is a driver for the 'security ID' available on various Allwinner
+	  devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sunxi_sid.
+
 endif
