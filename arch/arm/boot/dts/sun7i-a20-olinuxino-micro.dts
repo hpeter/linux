@@ -138,6 +138,12 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c1_pins_a>;
 			status = "okay";
+
+			at24@50 {
+				compatible = "atmel,at24c16";
+				reg = <0x50>;
+				pagesize = <16>;
+			};
 		};
 
 		i2c2: i2c@01c2b400 {
