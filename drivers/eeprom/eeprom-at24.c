@@ -22,6 +22,8 @@
 #include <linux/jiffies.h>
 #include <linux/of.h>
 #include <linux/i2c.h>
+#include <linux/eeprom.h>
+
 #include <linux/platform_data/at24.h>
 
 /*
@@ -54,7 +56,6 @@
 
 struct at24_data {
 	struct at24_platform_data chip;
-	struct memory_accessor macc;
 	int use_smbus;
 
 	/*
@@ -62,7 +63,6 @@ struct at24_data {
 	 * but not from changes by other I2C masters.
 	 */
 	struct mutex lock;
-	struct bin_attribute bin;
 
 	u8 *writebuf;
 	unsigned write_max;
@@ -113,8 +113,7 @@ static const struct i2c_device_id at24_ids[] = {
 	{ "24c01", AT24_DEVICE_MAGIC(1024 / 8, 0) },
 	{ "24c02", AT24_DEVICE_MAGIC(2048 / 8, 0) },
 	/* spd is a 24c02 in memory DIMMs */
-	{ "spd", AT24_DEVICE_MAGIC(2048 / 8,
-		AT24_FLAG_READONLY | AT24_FLAG_IRUGO) },
+	{ "spd", AT24_DEVICE_MAGIC(2048 / 8, AT24_FLAG_READONLY) },
 	{ "24c04", AT24_DEVICE_MAGIC(4096 / 8, 0) },
 	/* 24rf08 quirk is handled at i2c-core */
 	{ "24c08", AT24_DEVICE_MAGIC(8192 / 8, 0) },
@@ -266,9 +265,10 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	return -ETIMEDOUT;
 }
 
-static ssize_t at24_read(struct at24_data *at24,
-		char *buf, loff_t off, size_t count)
+static ssize_t at24_read(struct eeprom_device *eeprom, char *buf,
+			 loff_t off, size_t count)
 {
+	struct at24_data *at24 = eeprom_priv(eeprom);
 	ssize_t retval = 0;
 
 	if (unlikely(!count))
@@ -299,17 +299,6 @@ static ssize_t at24_read(struct at24_data *at24,
 
 	return retval;
 }
-
-static ssize_t at24_bin_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct at24_data *at24;
-
-	at24 = dev_get_drvdata(container_of(kobj, struct device, kobj));
-	return at24_read(at24, buf, off, count);
-}
-
 
 /*
  * Note that if the hardware write-protect pin is pulled high, the whole
@@ -388,9 +377,10 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, const char *buf,
 	return -ETIMEDOUT;
 }
 
-static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
-			  size_t count)
+static ssize_t at24_write(struct eeprom_device *eeprom, const char *buf,
+			  loff_t off, size_t count)
 {
+	struct at24_data *at24 = eeprom_priv(eeprom);
 	ssize_t retval = 0;
 
 	if (unlikely(!count))
@@ -422,45 +412,6 @@ static ssize_t at24_write(struct at24_data *at24, const char *buf, loff_t off,
 	return retval;
 }
 
-static ssize_t at24_bin_write(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct at24_data *at24;
-
-	if (unlikely(off >= attr->size))
-		return -EFBIG;
-
-	at24 = dev_get_drvdata(container_of(kobj, struct device, kobj));
-	return at24_write(at24, buf, off, count);
-}
-
-/*-------------------------------------------------------------------------*/
-
-/*
- * This lets other kernel code access the eeprom data. For example, it
- * might hold a board's Ethernet address, or board-specific calibration
- * data generated on the manufacturing floor.
- */
-
-static ssize_t at24_macc_read(struct memory_accessor *macc, char *buf,
-			 off_t offset, size_t count)
-{
-	struct at24_data *at24 = container_of(macc, struct at24_data, macc);
-
-	return at24_read(at24, buf, offset, count);
-}
-
-static ssize_t at24_macc_write(struct memory_accessor *macc, const char *buf,
-			  off_t offset, size_t count)
-{
-	struct at24_data *at24 = container_of(macc, struct at24_data, macc);
-
-	return at24_write(at24, buf, offset, count);
-}
-
-/*-------------------------------------------------------------------------*/
-
 #ifdef CONFIG_OF
 static void at24_get_ofdata(struct i2c_client *client,
 		struct at24_platform_data *chip)
@@ -485,6 +436,7 @@ static void at24_get_ofdata(struct i2c_client *client,
 static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct at24_platform_data chip;
+	struct eeprom_device *eeprom;
 	bool writable;
 	int use_smbus = 0;
 	struct at24_data *at24;
@@ -511,9 +463,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		/* update chipdata if OF is present */
 		at24_get_ofdata(client, &chip);
-
-		chip.setup = NULL;
-		chip.context = NULL;
 	}
 
 	if (!is_power_of_2(chip.byte_len))
@@ -552,27 +501,19 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		num_addresses =	DIV_ROUND_UP(chip.byte_len,
 			(chip.flags & AT24_FLAG_ADDR16) ? 65536 : 256);
 
-	at24 = devm_kzalloc(&client->dev, sizeof(struct at24_data) +
-		num_addresses * sizeof(struct i2c_client *), GFP_KERNEL);
-	if (!at24)
+	eeprom = eeprom_alloc(&client->dev, sizeof(struct at24_data) +
+			      num_addresses * sizeof(struct i2c_client *));
+	if (!eeprom)
 		return -ENOMEM;
 
+	at24 = eeprom_priv(eeprom);
 	mutex_init(&at24->lock);
 	at24->use_smbus = use_smbus;
 	at24->chip = chip;
 	at24->num_addresses = num_addresses;
 
-	/*
-	 * Export the EEPROM bytes through sysfs, since that's convenient.
-	 * By default, only root should see the data (maybe passwords etc)
-	 */
-	sysfs_bin_attr_init(&at24->bin);
-	at24->bin.attr.name = "eeprom";
-	at24->bin.attr.mode = chip.flags & AT24_FLAG_IRUGO ? S_IRUGO : S_IRUSR;
-	at24->bin.read = at24_bin_read;
-	at24->bin.size = chip.byte_len;
-
-	at24->macc.read = at24_macc_read;
+	eeprom->read = at24_read;
+	eeprom->size = chip.byte_len;
 
 	writable = !(chip.flags & AT24_FLAG_READONLY);
 	if (writable) {
@@ -581,10 +522,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 			unsigned write_max = chip.page_size;
 
-			at24->macc.write = at24_macc_write;
-
-			at24->bin.write = at24_bin_write;
-			at24->bin.attr.mode |= S_IWUSR;
+			eeprom->write = at24_write;
 
 			if (write_max > io_limit)
 				write_max = io_limit;
@@ -617,14 +555,10 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	err = sysfs_create_bin_file(&client->dev.kobj, &at24->bin);
-	if (err)
-		goto err_clients;
-
 	i2c_set_clientdata(client, at24);
 
 	dev_info(&client->dev, "%zu byte %s EEPROM, %s, %u bytes/write\n",
-		at24->bin.size, client->name,
+		chip.byte_len, client->name,
 		writable ? "writable" : "read-only", at24->write_max);
 	if (use_smbus == I2C_SMBUS_WORD_DATA ||
 	    use_smbus == I2C_SMBUS_BYTE_DATA) {
@@ -633,11 +567,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			   I2C_SMBUS_WORD_DATA ? "word" : "byte");
 	}
 
-	/* export data to kernel code */
-	if (chip.setup)
-		chip.setup(&at24->macc, chip.context);
-
-	return 0;
+	return eeprom_register(eeprom);
 
 err_clients:
 	for (i = 1; i < num_addresses; i++)
@@ -653,7 +583,6 @@ static int at24_remove(struct i2c_client *client)
 	int i;
 
 	at24 = i2c_get_clientdata(client);
-	sysfs_remove_bin_file(&client->dev.kobj, &at24->bin);
 
 	for (i = 1; i < at24->num_addresses; i++)
 		i2c_unregister_device(at24->client[i]);
