@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/i2c.h>
 #include <linux/eeprom.h>
+#include <linux/of_device.h>
 
 #include <linux/platform_data/at24.h>
 
@@ -128,6 +129,15 @@ static const struct i2c_device_id at24_ids[] = {
 	{ /* END OF LIST */ }
 };
 MODULE_DEVICE_TABLE(i2c, at24_ids);
+
+static const struct of_device_id at24_of_ids[] = {
+	{
+		.compatible = "atmel,at24c16",
+		.data = (void*)AT24_DEVICE_MAGIC(16384 / 8, 0),
+	},
+	{ /* END OF LIST */ }
+};
+MODULE_DEVICE_TABLE(of, at24_of_ids);
 
 /*-------------------------------------------------------------------------*/
 
@@ -444,13 +454,20 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	unsigned i, num_addresses;
 	kernel_ulong_t magic;
 
+
 	if (client->dev.platform_data) {
 		chip = *(struct at24_platform_data *)client->dev.platform_data;
 	} else {
-		if (!id->driver_data)
+		const struct of_device_id *of_id = of_match_device(at24_of_ids,
+								   &client->dev);
+
+		if (id && id->driver_data)
+			magic = id->driver_data;
+		else if (of_id && of_id->data)
+			magic = (kernel_ulong_t)of_id->data;
+		else
 			return -ENODEV;
 
-		magic = id->driver_data;
 		chip.byte_len = BIT(magic & AT24_BITMASK(AT24_SIZE_BYTELEN));
 		magic >>= AT24_SIZE_BYTELEN;
 		chip.flags = magic & AT24_BITMASK(AT24_SIZE_FLAGS);
@@ -596,6 +613,7 @@ static struct i2c_driver at24_driver = {
 	.driver = {
 		.name = "at24",
 		.owner = THIS_MODULE,
+		.of_match_table = at24_of_ids,
 	},
 	.probe = at24_probe,
 	.remove = at24_remove,
