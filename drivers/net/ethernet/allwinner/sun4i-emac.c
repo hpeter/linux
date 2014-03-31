@@ -13,6 +13,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/eeprom.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/gpio.h>
@@ -814,7 +815,7 @@ static int emac_probe(struct platform_device *pdev)
 	struct emac_board_info *db;
 	struct net_device *ndev;
 	int ret = 0;
-	const char *mac_addr;
+	char *mac_addr;
 
 	ndev = alloc_etherdev(sizeof(struct emac_board_info));
 	if (!ndev) {
@@ -866,6 +867,36 @@ static int emac_probe(struct platform_device *pdev)
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)
 		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+
+	/* Check if the MAC address is valid */
+	/* if (!is_valid_ether_addr(mac_addr)) { */
+	if (true) {
+		struct eeprom_cell *cell;
+		ssize_t len;
+
+		mac_addr = kzalloc(ETH_ALEN, GFP_KERNEL);
+		if (!mac_addr)
+			return -ENOMEM;
+
+		cell = eeprom_cell_get(&pdev->dev, NULL);
+		if (!IS_ERR(cell)) {
+			mac_addr = eeprom_cell_read(cell, &len);
+			if (!IS_ERR(mac_addr) && (len == ETH_ALEN)) {
+				memcpy(ndev->dev_addr, mac_addr, len);
+
+				dev_warn(&pdev->dev,
+					 "using MAC address from EEPROM %pM\n",
+					 ndev->dev_addr);
+			}
+		} else {
+			if (PTR_ERR(cell) == -EPROBE_DEFER) {
+				kfree(mac_addr);
+				return PTR_ERR(cell);
+			}
+		}
+
+		kfree(mac_addr);
+	}
 
 	/* Check if the MAC address is valid, if not get a random one */
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
