@@ -157,9 +157,7 @@ bad_config:
 static struct at24_platform_data mityomapl138_fd_chip = {
 	.byte_len	= 256,
 	.page_size	= 8,
-	.flags		= AT24_FLAG_READONLY | AT24_FLAG_IRUGO,
-	.setup		= read_factory_config,
-	.context	= NULL,
+	.flags		= AT24_FLAG_READONLY,
 };
 
 static struct davinci_i2c_platform_data mityomap_i2c_0_pdata = {
