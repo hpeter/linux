@@ -491,20 +491,21 @@ static irqreturn_t sun6i_dma_interrupt(int irq, void *dev_id)
 
 				spin_lock_irqsave(&vchan->vc.lock, flags);
 
-				switch (status & 0xf) {
-				case DMA_IRQ_PKG:
+				if ((status & 0xf) & DMA_IRQ_PKG) {
+					dev_vdbg(sdev->slave.dev,
+						 "Cyclic interrupt for physical channel %d",
+						 pchan->idx);
 					vchan_cyclic_callback(&pchan->desc->vd);
-					break;
-				case DMA_IRQ_QUEUE:
+				}
+
+				if ((status & 0xf) & DMA_IRQ_QUEUE) {
 					vchan_cookie_complete(&pchan->desc->vd);
 					pchan->done = pchan->desc;
 
 					if (!atomic_read(&sdev->tasklet_shutdown))
 						tasklet_schedule(&sdev->task);
-					break;
-				default:
-					break;
 				}
+
 				spin_unlock_irqrestore(&vchan->vc.lock, flags);
 			}
 
