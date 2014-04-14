@@ -148,8 +148,10 @@ static const struct snd_kcontrol_new sun6i_right_hp_mux_controls =
 	SOC_DAPM_ENUM("Right Headphone Amplifier Select", sun6i_right_hp_mux_enum);
 
 static const struct snd_soc_dapm_widget sun6i_dapm_widgets[] = {
+	/* Digital controls of the DACs */
 	SND_SOC_DAPM_DAC("DAC", "Playback", SUN6I_DAC_DIGITAL_CTRL_REG, 31, 0),
 
+	/* Analog parts of the DACs */
 	SND_SOC_DAPM_DAC("Left DAC", "Playback", SUN6I_DAC_ANALOG_CTRL_REG, 30, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "Playback", SUN6I_DAC_ANALOG_CTRL_REG, 31, 0),
 
@@ -157,16 +159,11 @@ static const struct snd_soc_dapm_widget sun6i_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("Headphone Amplifier",
 			 SUN6I_POWER_AMPLIFIER_CTRL_REG, 31, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA("Left Headphone Amplifier",
-			 SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Headphone Amplifier",
-			 SND_SOC_NOPM, 0, 0, NULL, 0),
-
 	/* Mutes of both channels coming to the headphone amplifier */
-	SND_SOC_DAPM_SWITCH("Left Headphone Switch",
-			    SUN6I_DAC_ANALOG_CTRL_REG, 6, 1, 0),
-	SND_SOC_DAPM_SWITCH("Right Headphone Switch",
-			    SUN6I_DAC_ANALOG_CTRL_REG, 7, 1, 0),
+	SND_SOC_DAPM_PGA("Left Headphone Amplifier",
+			 SUN6I_DAC_ANALOG_CTRL_REG, 6, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Headphone Amplifier",
+			 SUN6I_DAC_ANALOG_CTRL_REG, 7, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("Left Output Mixer", SUN6I_DAC_ANALOG_CTRL_REG, 28, 0,
 			   sun6i_left_output_mixer_controls,
@@ -206,12 +203,14 @@ static const struct snd_soc_dapm_route sun6i_dapm_routes[] = {
 	{ "Right Headphone Amplifier Mux", NULL, "Right DAC" },
 
 	/* Left HP Amplifier */
-	{ "Left Headphone Amplifier", NULL, "Headphone Amplifier" },
-	{ "Left Headphone Amplifier", "Left Headphone Switch", "Left Headphone Amplifier Mux" },
+	{ "Headphone Amplifier", NULL, "Left Headphone Amplifier Mux" },
 
 	/* Right HP Amplifier */
+	{ "Headphone Amplifier", NULL, "Right Headphone Amplifier Mux" },
+
+	/* Power up the headphone amplifiers */
+	{ "Left Headphone Amplifier", NULL, "Headphone Amplifier" },
 	{ "Right Headphone Amplifier", NULL, "Headphone Amplifier" },
-	{ "Right Headphone Amplifier", "Right Headphone Switch", "Right Headphone Amplifier Mux" },
 
 	/* Headphone outputs */
 	{ "HPL", NULL, "Left Headphone Amplifier" },
@@ -1131,40 +1130,37 @@ static struct snd_soc_dai_driver sun6i_codec_dai = {
 
 static int sun6i_soc_probe(struct snd_soc_codec *codec)
 {
-	printk("codec->dev %p\n", codec->dev);
-	printk("dev data %p\n", dev_get_drvdata(codec->dev));
-	printk("sun6i %p\n", sun6i);
-	printk("sun6i->regmap %p\n", sun6i->regmap);
+	codec->control_data = sun6i->regmap;
 
-	/* HPCOMM is off and output is floating (WTF?!) */
-	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
-	/* Disable headphone output */
-	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0);
+	/* /\* HPCOMM is off and output is floating (WTF?!) *\/ */
+	/* codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0); */
+	/* /\* Disable headphone output *\/ */
+	/* codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x1, HPCOM_PRO, 0x0); */
 
-	/*
-	 * Enable Headset MIC Bias Current sensor & ADC
-	 * Due to an hardware bug, it seems to be only possible at init
-	 */
-	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1);
+	/* /\* */
+	/*  * Enable Headset MIC Bias Current sensor & ADC */
+	/*  * Due to an hardware bug, it seems to be only possible at init */
+	/*  *\/ */
+	/* codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, HBIASADCEN, 0x1); */
 
-	/*
-	 * Mute Playback Left and Right channels
-	 * Also disables the associated mixer and DAC
-	 */
-	sun6i_codec_hp_chan_mute(sun6i, true, true);
+	/* /\* */
+	/*  * Mute Playback Left and Right channels */
+	/*  * Also disables the associated mixer and DAC */
+	/*  *\/ */
+	/* sun6i_codec_hp_chan_mute(sun6i, true, true); */
 
-	/* Disable Playback Lineouts */ 
-	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0);
-	codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0);
+	/* /\* Disable Playback Lineouts *\/  */
+	/* codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTL_EN, 0x0); */
+	/* codec_wr_control(sun6i, SUN6I_MIC_CTRL, 0x1, LINEOUTR_EN, 0x0); */
 
-	/*
-	 * Fix the init blaze noise
-	 * Really have to find more details about that
-	 */
-	codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1);
+	/* /\* */
+	/*  * Fix the init blaze noise */
+	/*  * Really have to find more details about that */
+	/*  *\/ */
+	/* codec_wr_control(sun6i, SUN6I_ADDAC_TUNE, 0x1, PA_SLOPE_SECECT, 0x1); */
 
-	/* set HPCOM control as direct driver for floating (Redundant?) */
-	codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0);
+	/* /\* set HPCOM control as direct driver for floating (Redundant?) *\/ */
+	/* codec_wr_control(sun6i, SUN6I_PA_CTRL, 0x3, HPCOM_CTL, 0x0); */
 
 	/*
 	 * Stop doing DMA requests whenever there's only 16 samples
@@ -1178,8 +1174,11 @@ static int sun6i_soc_probe(struct snd_soc_codec *codec)
 	/* Flush RX FIFO */
 	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 
-	/* Use a 32 bits FIR */
-	codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1);
+	/* Do DRQ whenever the FIFO is empty */
+	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, 4, 0x1);
+
+	/* /\* Use a 32 bits FIR *\/ */
+	/* codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1); */
 
 	return 0;
 }
