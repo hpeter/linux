@@ -386,8 +386,6 @@ static void sun6i_a31_get_pll1_factors(u32 *freq, u32 parent_rate,
 static void sun6i_a31_get_pll2_factors(u32 *freq, u32 parent_rate,
 				       u8 *n, u8 *k, u8 *m, u8 *p)
 {
-	printk("Prout\n");
-
 	if (*freq >= 24571428) {
 		if (n == NULL) {
 			*freq = 24571428;
@@ -407,8 +405,6 @@ static void sun6i_a31_get_pll2_factors(u32 *freq, u32 parent_rate,
                 *m = 20;
                 *p = 3;
 	}
-
-	printk("Plop\n");
 }
 
 /**
