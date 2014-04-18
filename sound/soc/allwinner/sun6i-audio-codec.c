@@ -69,7 +69,7 @@ struct sun6i_priv *sun6i;
 
 void codec_wr_control(struct sun6i_priv *sun6i, u32 reg, u32 mask, u32 shift, u32 val)
 {
-	regmap_update_bits(sun6i->regmap, reg, mask << shift, val << shift);
+//	regmap_update_bits(sun6i->regmap, reg, mask << shift, val << shift);
 }
 
 static void sun6i_codec_hp_chan_mute(struct sun6i_priv *sun6i, bool left, bool right)
@@ -912,6 +912,7 @@ static int sun6i_prepare(struct snd_pcm_substream *substream,
 			break;
 		}
 
+/*
 		if (clk_set_rate(sun6i->mod_clk, freq)) {
 			dev_err(dai->dev, "Couldn't set mod clock rate to %d\n", freq);
 			return -EINVAL;
@@ -921,18 +922,18 @@ static int sun6i_prepare(struct snd_pcm_substream *substream,
 		reg_val &= ~(7 << 29);
 		reg_val |= rate << 29;
 		writel(reg_val, sun6i->base + SUN6I_DAC_FIFOC);
-
+*/
 		switch (substream->runtime->channels) {
 		case 1:
-			reg_val = readl(sun6i->base + SUN6I_DAC_FIFOC);
-			reg_val |= BIT(6);
-			writel(reg_val, sun6i->base + SUN6I_DAC_FIFOC);			
+			/* reg_val = readl(sun6i->base + SUN6I_DAC_FIFOC); */
+			/* reg_val |= BIT(6); */
+			/* writel(reg_val, sun6i->base + SUN6I_DAC_FIFOC);			 */
 			break;
 		case 2:
 		default:
-			reg_val = readl(sun6i->base + SUN6I_DAC_FIFOC);
-			reg_val &= ~BIT(6);
-			writel(reg_val, sun6i->base + SUN6I_DAC_FIFOC);
+			/* reg_val = readl(sun6i->base + SUN6I_DAC_FIFOC); */
+			/* reg_val &= ~BIT(6); */
+			/* writel(reg_val, sun6i->base + SUN6I_DAC_FIFOC); */
 			break;
 		}
 	} else {
@@ -986,16 +987,16 @@ static int sun6i_prepare(struct snd_pcm_substream *substream,
 
 		switch (substream->runtime->channels) {
 		case 1:
-			reg_val = readl(sun6i->base + SUN6I_ADC_FIFOC);
-			reg_val |= BIT(7);
-			writel(reg_val, sun6i->base + SUN6I_ADC_FIFOC);			
+			/* reg_val = readl(sun6i->base + SUN6I_ADC_FIFOC); */
+			/* reg_val |= BIT(7); */
+			/* writel(reg_val, sun6i->base + SUN6I_ADC_FIFOC);			 */
 			break;
 
 		case 2:
 		default:
-			reg_val = readl(sun6i->base + SUN6I_ADC_FIFOC);
-			reg_val &= ~BIT(7);
-			writel(reg_val, sun6i->base + SUN6I_ADC_FIFOC);
+			/* reg_val = readl(sun6i->base + SUN6I_ADC_FIFOC); */
+			/* reg_val &= ~BIT(7); */
+			/* writel(reg_val, sun6i->base + SUN6I_ADC_FIFOC); */
 			break;
 		}
 	}
@@ -1112,7 +1113,7 @@ static const struct snd_soc_dai_ops sun6i_codec_dai_ops = {
 
 static struct snd_soc_dai_driver sun6i_codec_dai = {
 	.probe	= sun6i_dai_probe,
-	.name = "sun6i-codec",
+	.name = "sun6i-audio-codec-pcm",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -1194,99 +1195,6 @@ static struct snd_soc_codec_driver soc_codec_dev_sun6i = {
 	.num_dapm_routes	= ARRAY_SIZE(sun6i_dapm_routes),
 };
 
-static const struct snd_soc_dapm_widget sun6i_card_dapm_widgets[] = {
-	SND_SOC_DAPM_HP("Headphone Jack", NULL),
-};
-
-static const struct snd_soc_dapm_route sun6i_card_route[] = {
-	{ "Headphone Jack",	NULL,	"HPL" },
-	{ "Headphone Jack",	NULL,	"HPR" },
-};
-
-static int sun6i_dai_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
-
-	return 0;
-}
-
-static struct snd_soc_dai_link sun6i_card_dai[] = {
-	{
-		.name		= "sun6i_codec",
-		.stream_name	= "sun6i_codec",
-		.cpu_dai_name	= "snd-soc-dummy-dai",
-
-		.codec_dai_name = "sun6i-codec",
-		.init		= sun6i_dai_init,
-	},
-};
-
-static struct snd_soc_card sun6i_codec_card = {
-	.name	= "sun6i-codec",
-	.owner	= THIS_MODULE,
-
-	.dai_link = sun6i_card_dai,
-	.num_links = ARRAY_SIZE(sun6i_card_dai),
-
-	.dapm_widgets = sun6i_card_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sun6i_card_dapm_widgets),
-	.dapm_routes = sun6i_card_route,
-	.num_dapm_routes = ARRAY_SIZE(sun6i_card_route),
-};
-
-static int sun6i_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
-					  struct snd_pcm_hw_params *params,
-					  struct dma_slave_config *slave_config)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_dmaengine_dai_dma_data *dma_data;
-	int ret;
-
-	dma_data = snd_soc_dai_get_dma_data(rtd->codec_dai, substream);
-
-	ret = snd_hwparams_to_dma_slave_config(substream, params, slave_config);
-	if (ret)
-		return ret;
-
-	snd_dmaengine_pcm_set_config_from_dai_data(substream, dma_data,
-						   slave_config);
-
-	return 0;
-}
-
-static const struct snd_pcm_hardware sun6i_pcm_hardware = {
-	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
-				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				   SNDRV_PCM_INFO_MMAP |
-				   SNDRV_PCM_INFO_MMAP_VALID |
-				   SNDRV_PCM_INFO_PAUSE |
-				   SNDRV_PCM_INFO_RESUME),
-	.formats		= (SNDRV_PCM_FMTBIT_S16_LE |
-				   SNDRV_PCM_FMTBIT_S24_LE),
-	.rates			= (SNDRV_PCM_RATE_8000_192000 |
-				   SNDRV_PCM_RATE_KNOT),
-
-	.rate_min		= 8000,
-	.rate_max		= 192000,
-	.channels_min		= 1,
-	.channels_max		= 2,
-	.buffer_bytes_max	= 128 * 1024,	/* value must be (2^n)Kbyte size */
-	.period_bytes_min	= 1024 * 2,
-	.period_bytes_max	= 1024 * 32,
-	.periods_min		= 2,
-	.periods_max		= 8,
-	.fifo_size	     	= 32,
-};
-
-static const struct snd_dmaengine_pcm_config sun6i_dmaengine_pcm_config = {
-	.prepare_slave_config	= sun6i_pcm_prepare_slave_config,
-	.pcm_hardware		= &sun6i_pcm_hardware,
-	.prealloc_buffer_size	= 32 * 1024,
-};
-
 static struct regmap_config sun6i_codec_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
@@ -1306,71 +1214,42 @@ static int sun6i_codec_probe(struct platform_device *pdev)
 	if (!sun6i)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sun6i->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(sun6i->base))
-		return PTR_ERR(sun6i->base);
+	/* res = platform_get_resource(pdev, IORESOURCE_MEM, 0); */
+	/* sun6i->base = devm_ioremap_resource(&pdev->dev, res); */
+	/* if (IS_ERR(sun6i->base)) */
+	/* 	return PTR_ERR(sun6i->base); */
 
-	sun6i->apb_clk = devm_clk_get(&pdev->dev, "apb");
-	if (IS_ERR(sun6i->apb_clk)) {
-		dev_err(&pdev->dev, "Couldn't get the APB clock\n");
-		return PTR_ERR(sun6i->apb_clk);
-	}
-	clk_prepare_enable(sun6i->apb_clk);
+	/* sun6i->apb_clk = devm_clk_get(&pdev->dev, "apb"); */
+	/* if (IS_ERR(sun6i->apb_clk)) { */
+	/* 	dev_err(&pdev->dev, "Couldn't get the APB clock\n"); */
+	/* 	return PTR_ERR(sun6i->apb_clk); */
+	/* } */
+	/* clk_prepare_enable(sun6i->apb_clk); */
 
-	sun6i->mod_clk = devm_clk_get(&pdev->dev, "mod");
-	if (IS_ERR(sun6i->mod_clk)) {
-		dev_err(&pdev->dev, "Couldn't get the module clock\n");
-		return PTR_ERR(sun6i->mod_clk);
-	}
-	clk_prepare_enable(sun6i->mod_clk);
+	/* sun6i->mod_clk = devm_clk_get(&pdev->dev, "mod"); */
+	/* if (IS_ERR(sun6i->mod_clk)) { */
+	/* 	dev_err(&pdev->dev, "Couldn't get the module clock\n"); */
+	/* 	return PTR_ERR(sun6i->mod_clk); */
+	/* } */
+	/* clk_prepare_enable(sun6i->mod_clk); */
 
-	sun6i->rstc = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(sun6i->rstc)) {
-		dev_err(&pdev->dev, "Couldn't get the reset controller\n");
-		return PTR_ERR(sun6i->rstc);
-	}
+	/* sun6i->rstc = devm_reset_control_get(&pdev->dev, NULL); */
+	/* if (IS_ERR(sun6i->rstc)) { */
+	/* 	dev_err(&pdev->dev, "Couldn't get the reset controller\n"); */
+	/* 	return PTR_ERR(sun6i->rstc); */
+	/* } */
 
-	sun6i->regmap = devm_regmap_init_mmio(&pdev->dev, sun6i->base,
-					      &sun6i_codec_regmap_config);
-	if (IS_ERR(sun6i->regmap)) {
-		dev_err(&pdev->dev, "Couldn't register MMIO regmap\n");
-		return PTR_ERR(sun6i->regmap);
-	}
-
-	sun6i->dma_data[SNDRV_PCM_STREAM_PLAYBACK].addr =
-		(dma_addr_t)res->start + SUN6I_DAC_FIFO_REG;
-	sun6i->dma_data[SNDRV_PCM_STREAM_CAPTURE].addr =
-		(dma_addr_t)res->start + SUN6I_ADC_FIFO_REG;
-
-	sun6i->dma_data[SNDRV_PCM_STREAM_PLAYBACK].addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	sun6i->dma_data[SNDRV_PCM_STREAM_CAPTURE].addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-
-	sun6i->dma_data[SNDRV_PCM_STREAM_PLAYBACK].maxburst = 1;
-	sun6i->dma_data[SNDRV_PCM_STREAM_CAPTURE].maxburst = 1;
-
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, &sun6i_dmaengine_pcm_config, 0);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't register DMAengine PCM layer\n");
-		return ret;
-	}
+	/* sun6i->regmap = devm_regmap_init_mmio(&pdev->dev, sun6i->base, */
+	/* 				      &sun6i_codec_regmap_config); */
+	/* if (IS_ERR(sun6i->regmap)) { */
+	/* 	dev_err(&pdev->dev, "Couldn't register MMIO regmap\n"); */
+	/* 	return PTR_ERR(sun6i->regmap); */
+	/* } */
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sun6i,
 				     &sun6i_codec_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register the codec\n");
-		return ret;
-	}
-
-	sun6i_card_dai->codec_of_node = pdev->dev.of_node;
-	sun6i_card_dai->platform_of_node = pdev->dev.of_node;
-
-	sun6i_codec_card.dev = &pdev->dev;
-
-	ret = devm_snd_soc_register_card(&pdev->dev, &sun6i_codec_card);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't register the card\n");
-		snd_soc_unregister_codec(&pdev->dev);
 		return ret;
 	}
 
@@ -1384,19 +1263,11 @@ static int sun6i_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id sun6i_codec_match[] = {
-	{ .compatible = "allwinner,sun6i-a31-audio-codec", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, sun6i_codec_match);
-
-
 static struct platform_driver sun6i_codec_driver = {
 	.probe		= sun6i_codec_probe,
 	.remove		= sun6i_codec_remove,
 	.driver		= {
-		.name	= "sun6i-codec",
-		.of_match_table = sun6i_codec_match,
+		.name	= "sun6i-audio-codec",
 	},
 };
 
