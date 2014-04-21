@@ -30,7 +30,6 @@
 
 struct at25_data {
 	struct spi_device	*spi;
-	struct memory_accessor	mem;
 	struct mutex		lock;
 	struct spi_eeprom	chip;
 	unsigned		addrlen;
@@ -129,7 +128,7 @@ at25_ee_read(
 		count, offset, (int) status);
 
 	mutex_unlock(&at25->lock);
-	return status ? status : count;
+	return status ? 0 : count;
 }
 
 static ssize_t at25_bin_read(struct eeprom_device *eeprom, char *buf,
@@ -150,7 +149,7 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 	u8			*bounce;
 
 	if (unlikely(off >= at25->size))
-		return -EFBIG;
+		return 0;
 	if ((off + count) > at25->size)
 		count = at25->size - off;
 	if (unlikely(!count))
@@ -162,7 +161,7 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 		buf_size = io_limit;
 	bounce = kmalloc(buf_size + at25->addrlen + 1, GFP_KERNEL);
 	if (!bounce)
-		return -ENOMEM;
+		return 0;
 
 	/* For write, rollover is within the page ... so we write at
 	 * most one page, then manually roll over to the next page.
@@ -256,7 +255,7 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 	mutex_unlock(&at25->lock);
 
 	kfree(bounce);
-	return written ? written : status;
+	return written ? written : 0;
 }
 
 static ssize_t at25_bin_write(struct eeprom_device *eeprom, const char *buf,
@@ -266,28 +265,6 @@ static ssize_t at25_bin_write(struct eeprom_device *eeprom, const char *buf,
 
 	return at25_ee_write(at25, buf, off, count);
 }
-
-/*-------------------------------------------------------------------------*/
-
-/* Let in-kernel code access the eeprom data. */
-
-static ssize_t at25_mem_read(struct memory_accessor *mem, char *buf,
-			 off_t offset, size_t count)
-{
-	struct at25_data *at25 = container_of(mem, struct at25_data, mem);
-
-	return at25_ee_read(at25, buf, offset, count);
-}
-
-static ssize_t at25_mem_write(struct memory_accessor *mem, const char *buf,
-			  off_t offset, size_t count)
-{
-	struct at25_data *at25 = container_of(mem, struct at25_data, mem);
-
-	return at25_ee_write(at25, buf, offset, count);
-}
-
-/*-------------------------------------------------------------------------*/
 
 static int at25_np_to_chip(struct device *dev,
 			   struct device_node *np,
@@ -402,16 +379,10 @@ static int at25_probe(struct spi_device *spi)
 	at25->addrlen = addrlen;
 
 	eeprom->read = at25_bin_read;
-	at25->mem.read = at25_mem_read;
 
 	at25->size = at25->chip.byte_len;
-	if (!(chip.flags & EE_READONLY)) {
+	if (!(chip.flags & EE_READONLY))
 		eeprom->write = at25_bin_write;
-		at25->mem.write = at25_mem_write;
-	}
-
-	if (chip.setup)
-		chip.setup(&at25->mem, chip.context);
 
 	err = eeprom_register(eeprom);
 	if (err) {
