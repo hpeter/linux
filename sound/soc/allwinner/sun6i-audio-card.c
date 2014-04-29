@@ -17,6 +17,8 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
+#include <linux/mfd/core.h>
+
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -70,47 +72,48 @@ static struct snd_soc_card sun6i_codec_card = {
 	.num_dapm_routes = ARRAY_SIZE(sun6i_card_route),
 };
 
-static struct platform_device *sun6i_dai_device;
-static struct platform_device *sun6i_codec_device;
+static const struct resource sun6i_audio_pcm_res[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static const struct resource sun6i_audio_codec_res[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static const struct mfd_cell sun6i_audio_subdevs[] = {
+	{
+		.name		= "sun6i-audio-pcm",
+		.of_compatible	= "allwinner,sun6i-a31-audio-codec",
+		.resources	= sun6i_audio_pcm_res,
+		.num_resources	= ARRAY_SIZE(sun6i_audio_pcm_res),
+	},
+	{
+		.name		= "sun6i-audio-codec",
+		.of_compatible	= "allwinner,sun6i-a31-audio-codec",
+		.resources	= sun6i_audio_codec_res,
+		.num_resources	= ARRAY_SIZE(sun6i_audio_codec_res),
+	},
+};
 
 static int sun6i_audio_card_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &sun6i_codec_card;
+	struct resource *res;
 	int ret;
 
 	printk("Blip\n");
 
-	sun6i_dai_device = platform_device_alloc("sun6i-audio-pcm", -1);
-	if (!sun6i_dai_device)
-		return -ENOMEM;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
-	/* sun6i_dai_device->dev.parent = &pdev->dev; */
-	/* sun6i_dai_device->dev.of_node = pdev->dev.of_node; */
-
-	printk("Bloup\n");
-
-	ret = platform_device_add(sun6i_dai_device);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't register DAI device\n");
-		goto err_free_dai;
-	}
-
-	/* sun6i_codec_device->dev.parent = &pdev->dev; */
-	/* sun6i_codec_device->dev.of_node = pdev->dev.of_node; */
-
-	printk("Blop\n");
-
-	sun6i_codec_device = platform_device_alloc("sun6i-audio-codec", -1);
-	if (!sun6i_codec_device)
-		goto err_unregister_dai;
-
-	printk("Blap\n");
-
-	ret = platform_device_add(sun6i_codec_device);
-	if (ret) {
-		dev_err(&pdev->dev, "Couldn't register CODEC device\n");
-		goto err_free_codec;
-	}
+	ret = mfd_add_devices(&pdev->dev, 0, sun6i_audio_subdevs,
+			      ARRAY_SIZE(sun6i_audio_subdevs),
+			      res, -1, NULL);
+	if (ret)
+		return ret;
 
 	printk("Blep\n");
 
@@ -118,22 +121,15 @@ static int sun6i_audio_card_probe(struct platform_device *pdev)
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register ASoC card\n");
-		goto err_unregister_codec;
+		goto err_unregister_mfd;
 	}
 
 	printk("Pfiouuu\n");
 
 	return 0;
 
-err_unregister_codec:
-	platform_device_del(sun6i_codec_device);
-err_free_codec:
-	platform_device_put(sun6i_codec_device);
-err_unregister_dai:
-	platform_device_del(sun6i_dai_device);
-err_free_dai:
-	platform_device_put(sun6i_dai_device);
-
+err_unregister_mfd:
+	mfd_remove_devices(&pdev->dev);
 	return ret;
 }
 
@@ -141,8 +137,7 @@ static int sun6i_audio_card_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_card(&sun6i_codec_card);
 
-	platform_device_unregister(sun6i_codec_device);
-	platform_device_unregister(sun6i_dai_device);
+	mfd_remove_devices(&pdev->dev);
 
 	return 0;
 };
