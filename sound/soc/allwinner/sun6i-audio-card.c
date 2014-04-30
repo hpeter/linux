@@ -105,8 +105,6 @@ static int sun6i_audio_card_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	printk("Blip\n");
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	ret = mfd_add_devices(&pdev->dev, 0, sun6i_audio_subdevs,
@@ -115,16 +113,12 @@ static int sun6i_audio_card_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	printk("Blep\n");
-
 	card->dev = &pdev->dev;
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "Couldn't register ASoC card\n");
 		goto err_unregister_mfd;
 	}
-
-	printk("Pfiouuu\n");
 
 	return 0;
 
