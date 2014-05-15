@@ -49,11 +49,11 @@ static struct snd_soc_dai_link sun6i_card_dai[] = {
 		.name		= "sun6i-audio",
 		.stream_name	= "sun6i-test",
 
-		.cpu_dai_name	= "sun6i-audio-pcm",
+		.cpu_dai_name	= "sun6i-audio-pcm.0",
 		.codec_dai_name = "sun6i-audio-codec-pcm",
 
-		.platform_name	= "sun6i-audio-pcm",
-		.codec_name	= "sun6i-audio-codec",
+		.platform_name	= "sun6i-audio-pcm.0",
+		.codec_name	= "sun6i-audio-codec.0",
 
 		.init		= sun6i_dai_init,
 	},
@@ -87,13 +87,13 @@ static const struct resource sun6i_audio_codec_res[] = {
 static const struct mfd_cell sun6i_audio_subdevs[] = {
 	{
 		.name		= "sun6i-audio-pcm",
-		.of_compatible	= "allwinner,sun6i-a31-audio-codec",
+		.of_compatible	= "allwinner,sun6i-a31-audio-pcm",
 		.resources	= sun6i_audio_pcm_res,
 		.num_resources	= ARRAY_SIZE(sun6i_audio_pcm_res),
 	},
 	{
 		.name		= "sun6i-audio-codec",
-		.of_compatible	= "allwinner,sun6i-a31-audio-codec",
+		.of_compatible	= "allwinner,sun6i-a31-audio-codec-for-real",
 		.resources	= sun6i_audio_codec_res,
 		.num_resources	= ARRAY_SIZE(sun6i_audio_codec_res),
 	},

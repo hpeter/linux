@@ -1208,43 +1208,45 @@ static int sun6i_codec_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	printk("BWAAAAAAH\n");
-
 	sun6i = devm_kzalloc(&pdev->dev, sizeof(struct sun6i_priv), GFP_KERNEL);
 	if (!sun6i)
 		return -ENOMEM;
 
-	/* res = platform_get_resource(pdev, IORESOURCE_MEM, 0); */
-	/* sun6i->base = devm_ioremap_resource(&pdev->dev, res); */
-	/* if (IS_ERR(sun6i->base)) */
-	/* 	return PTR_ERR(sun6i->base); */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	sun6i->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(sun6i->base))
+		return PTR_ERR(sun6i->base);
 
-	/* sun6i->apb_clk = devm_clk_get(&pdev->dev, "apb"); */
-	/* if (IS_ERR(sun6i->apb_clk)) { */
-	/* 	dev_err(&pdev->dev, "Couldn't get the APB clock\n"); */
-	/* 	return PTR_ERR(sun6i->apb_clk); */
-	/* } */
-	/* clk_prepare_enable(sun6i->apb_clk); */
+	sun6i->apb_clk = devm_clk_get(&pdev->dev, "apb");
+	if (IS_ERR(sun6i->apb_clk)) {
+		dev_err(&pdev->dev, "Couldn't get the APB clock\n");
+		return PTR_ERR(sun6i->apb_clk);
+	}
+	clk_prepare_enable(sun6i->apb_clk);
 
-	/* sun6i->mod_clk = devm_clk_get(&pdev->dev, "mod"); */
-	/* if (IS_ERR(sun6i->mod_clk)) { */
-	/* 	dev_err(&pdev->dev, "Couldn't get the module clock\n"); */
-	/* 	return PTR_ERR(sun6i->mod_clk); */
-	/* } */
-	/* clk_prepare_enable(sun6i->mod_clk); */
+	sun6i->mod_clk = devm_clk_get(&pdev->dev, "mod");
+	if (IS_ERR(sun6i->mod_clk)) {
+		dev_err(&pdev->dev, "Couldn't get the module clock\n");
+		return PTR_ERR(sun6i->mod_clk);
+	}
+	clk_prepare_enable(sun6i->mod_clk);
 
-	/* sun6i->rstc = devm_reset_control_get(&pdev->dev, NULL); */
-	/* if (IS_ERR(sun6i->rstc)) { */
-	/* 	dev_err(&pdev->dev, "Couldn't get the reset controller\n"); */
-	/* 	return PTR_ERR(sun6i->rstc); */
-	/* } */
+	sun6i->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(sun6i->rstc)) {
+		dev_err(&pdev->dev, "Couldn't get the reset controller\n");
+		return PTR_ERR(sun6i->rstc);
+	}
 
-	/* sun6i->regmap = devm_regmap_init_mmio(&pdev->dev, sun6i->base, */
-	/* 				      &sun6i_codec_regmap_config); */
-	/* if (IS_ERR(sun6i->regmap)) { */
-	/* 	dev_err(&pdev->dev, "Couldn't register MMIO regmap\n"); */
-	/* 	return PTR_ERR(sun6i->regmap); */
-	/* } */
+	ret = reset_control_deassert(sun6i->rstc);
+	if (ret)
+		printk("prout\n");
+
+	sun6i->regmap = devm_regmap_init_mmio(&pdev->dev, sun6i->base,
+					      &sun6i_codec_regmap_config);
+	if (IS_ERR(sun6i->regmap)) {
+		dev_err(&pdev->dev, "Couldn't register MMIO regmap\n");
+		return PTR_ERR(sun6i->regmap);
+	}
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_sun6i,
 				     &sun6i_codec_dai, 1);

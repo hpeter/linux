@@ -211,8 +211,6 @@ static int sun6i_audio_pcm_dev_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pdev->dev.of_node = of_find_compatible_node(NULL, NULL, "allwinner,sun6i-a31-audio-codec");
-
 	return devm_snd_dmaengine_pcm_register(&pdev->dev,
 					       &sun6i_audio_pcm_dma_config,
 					       0);
