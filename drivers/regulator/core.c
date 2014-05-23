@@ -125,30 +125,39 @@ static bool have_full_constraints(void)
 }
 
 /**
- * of_get_regulator - get a regulator device node based on supply name
+ * of_get_regulator - get a regulator device based on supply name
  * @dev: Device pointer for the consumer (of regulator) device
+ * @node: Device node of the consumer regulator
  * @supply: regulator supply name
  *
  * Extract the regulator device node corresponding to the supply name.
- * returns the device node corresponding to the regulator if found, else
- * returns NULL.
+ * returns a regulator_dev structure corresponding to the regulator if
+ * found, else returns an error pointer.
  */
-static struct device_node *of_get_regulator(struct device *dev, const char *supply)
+static struct regulator_dev *of_get_regulator(struct device *dev,
+					      struct device_node *node,
+					      const char *supply)
 {
 	struct device_node *regnode = NULL;
+	struct regulator_dev *r;
 	char prop_name[32]; /* 32 is max size of property name */
 
 	dev_dbg(dev, "Looking up %s-supply from device tree\n", supply);
 
 	snprintf(prop_name, 32, "%s-supply", supply);
-	regnode = of_parse_phandle(dev->of_node, prop_name, 0);
+	regnode = of_parse_phandle(node, prop_name, 0);
 
 	if (!regnode) {
 		dev_dbg(dev, "Looking up %s property in node %s failed",
-				prop_name, dev->of_node->full_name);
-		return NULL;
+				prop_name, node->full_name);
+		return ERR_PTR(-ENODEV);
 	}
-	return regnode;
+
+	list_for_each_entry(r, &regulator_list, list)
+		if (r->dev.parent && node == r->dev.of_node)
+			return r;
+
+	return ERR_PTR(-EPROBE_DEFER);
 }
 
 static int _regulator_can_change_status(struct regulator_dev *rdev)
@@ -1259,7 +1268,6 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 						  int *ret)
 {
 	struct regulator_dev *r;
-	struct device_node *node;
 	struct regulator_map *map;
 	const char *devname = NULL;
 
@@ -1267,22 +1275,14 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 
 	/* first do a dt based lookup */
 	if (dev && dev->of_node) {
-		node = of_get_regulator(dev, supply);
-		if (node) {
-			list_for_each_entry(r, &regulator_list, list)
-				if (r->dev.parent &&
-					node == r->dev.of_node)
-					return r;
-			*ret = -EPROBE_DEFER;
-			return NULL;
+		r = of_get_regulator(dev, dev->of_node, supply);
+		if (IS_ERR(r)) {
+			*ret = PTR_ERR(r);
+
+			if (*ret == -EPROBE_DEFER)
+				return NULL;
 		} else {
-			/*
-			 * If we couldn't even get the node then it's
-			 * not just that the device didn't register
-			 * yet, there's no node and we'll never
-			 * succeed.
-			 */
-			*ret = -ENODEV;
+			return r;
 		}
 	}
 
