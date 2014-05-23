@@ -60,6 +60,14 @@
 		reg = <0x40000000 0x80000000>;
 	};
 
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <1 13 0xf08>,
+			     <1 14 0xf08>,
+			     <1 11 0xf08>,
+			     <1 10 0xf08>;
+	};
+
 	pmu {
 		compatible = "arm,cortex-a7-pmu", "arm,cortex-a15-pmu";
 		interrupts = <0 120 4>,

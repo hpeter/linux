@@ -34,6 +34,8 @@ static const char * const sun6i_board_dt_compat[] = {
 extern void __init sun6i_reset_init(void);
 static void __init sun6i_timer_init(void)
 {
+	asm volatile("mcr p15, 0, %0, c14, c0, 0" : : "r" (24000000));
+
 	of_clk_init(NULL);
 	if (IS_ENABLED(CONFIG_RESET_CONTROLLER))
 		sun6i_reset_init();
