@@ -3509,7 +3509,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (supply) {
 		struct regulator_dev *r;
 
-		r = regulator_dev_lookup(dev, NULL, supply, &ret);
+		r = regulator_dev_lookup(dev, config->of_node, supply, &ret);
 
 		if (ret == -ENODEV) {
 			/*
