@@ -1264,6 +1264,7 @@ static void regulator_supply_alias(struct device **dev, const char **supply)
 }
 
 static struct regulator_dev *regulator_dev_lookup(struct device *dev,
+						  struct device_node *of_node,
 						  const char *supply,
 						  int *ret)
 {
@@ -1273,7 +1274,20 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 
 	regulator_supply_alias(&dev, &supply);
 
-	/* first do a dt based lookup */
+	/* First, do a lookup against the provided of_node */
+	if (of_node) {
+		r = of_get_regulator(dev, of_node, supply);
+		if (IS_ERR(r)) {
+			*ret = PTR_ERR(r);
+
+			if (*ret == -EPROBE_DEFER)
+				return NULL;
+		} else {
+			return r;
+		}
+	}
+
+	/* Then, do a lookup based on the device of_node */
 	if (dev && dev->of_node) {
 		r = of_get_regulator(dev, dev->of_node, supply);
 		if (IS_ERR(r)) {
@@ -1332,7 +1346,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 	mutex_lock(&regulator_list_mutex);
 
-	rdev = regulator_dev_lookup(dev, id, &ret);
+	rdev = regulator_dev_lookup(dev, NULL, id, &ret);
 	if (rdev)
 		goto found;
 
@@ -3495,7 +3509,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	if (supply) {
 		struct regulator_dev *r;
 
-		r = regulator_dev_lookup(dev, supply, &ret);
+		r = regulator_dev_lookup(dev, NULL, supply, &ret);
 
 		if (ret == -ENODEV) {
 			/*
