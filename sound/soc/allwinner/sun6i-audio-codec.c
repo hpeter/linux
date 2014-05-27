@@ -69,7 +69,7 @@ struct sun6i_priv *sun6i;
 
 void codec_wr_control(struct sun6i_priv *sun6i, u32 reg, u32 mask, u32 shift, u32 val)
 {
-//	regmap_update_bits(sun6i->regmap, reg, mask << shift, val << shift);
+	regmap_update_bits(sun6i->regmap, reg, mask << shift, val << shift);
 }
 
 static void sun6i_codec_hp_chan_mute(struct sun6i_priv *sun6i, bool left, bool right)
@@ -1176,7 +1176,7 @@ static int sun6i_soc_probe(struct snd_soc_codec *codec)
 	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, ADC_FIFO_FLUSH, 0x1);
 
 	/* Do DRQ whenever the FIFO is empty */
-	codec_wr_control(sun6i, SUN6I_ADC_FIFOC, 0x1, 4, 0x1);
+	codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x1, 4, 0x1);
 
 	/* /\* Use a 32 bits FIR *\/ */
 	/* codec_wr_control(sun6i, SUN6I_DAC_FIFOC, 0x1, FIR_VERSION, 0x1); */
