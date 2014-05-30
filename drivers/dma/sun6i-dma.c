@@ -153,8 +153,6 @@ struct sun6i_dma_dev {
 	int			irq;
 	spinlock_t		lock;
 	struct reset_control	*rstc;
-	struct tasklet_struct	task;
-	atomic_t		tasklet_shutdown;
 	struct list_head	pending;
 	struct dma_pool		*pool;
 	struct sun6i_pchan	*pchans;
@@ -438,14 +436,58 @@ static int sun6i_dma_start_desc(struct sun6i_vchan *vchan)
 	return 0;
 }
 
-static void sun6i_dma_tasklet(unsigned long data)
+static void sun6i_dma_schedule_chan(struct sun6i_dma_dev *sdev)
 {
-	struct sun6i_dma_dev *sdev = (struct sun6i_dma_dev *)data;
 	struct sun6i_vchan *vchan;
 	struct sun6i_pchan *pchan;
 	unsigned int pchan_alloc = 0;
 	unsigned int pchan_idx;
 
+	/* Schedule a vchan to run on an empty vchan */
+	spin_lock(&sdev->lock);
+	for (pchan_idx = 0; pchan_idx < NR_MAX_CHANNELS; pchan_idx++) {
+		pchan = &sdev->pchans[pchan_idx];
+
+		if (pchan->vchan || list_empty(&sdev->pending))
+			continue;
+
+		vchan = list_first_entry(&sdev->pending,
+					 struct sun6i_vchan, node);
+
+		/* Remove from pending channels */
+		list_del_init(&vchan->node);
+		pchan_alloc |= BIT(pchan_idx);
+
+		/* Mark this channel allocated */
+		pchan->vchan = vchan;
+		vchan->phy = pchan;
+		dev_dbg(sdev->slave.dev, "pchan %u: alloc vchan %p\n",
+			pchan->idx, &vchan->vc);
+	}
+	spin_unlock(&sdev->lock);
+
+	/* Start the new scheduled transfers */
+	for (pchan_idx = 0; pchan_idx < NR_MAX_CHANNELS; pchan_idx++) {
+		if (!(pchan_alloc & BIT(pchan_idx)))
+			continue;
+
+		pchan = sdev->pchans + pchan_idx;
+		vchan = pchan->vchan;
+		if (vchan) {
+			spin_lock_irq(&vchan->vc.lock);
+			sun6i_dma_start_desc(vchan);
+			spin_unlock_irq(&vchan->vc.lock);
+		}
+	}
+}
+
+static irqreturn_t sun6i_dma_thread(int irq, void *dev_id)
+{
+	struct sun6i_dma_dev *sdev = dev_id;
+	struct sun6i_vchan *vchan;
+	struct sun6i_pchan *pchan;
+
+	/* Try to garbage collect the various vchan and reclaim used pchan */
 	list_for_each_entry(vchan, &sdev->slave.channels, vc.chan.device_node) {
 		spin_lock_irq(&vchan->vc.lock);
 
@@ -467,40 +509,9 @@ static void sun6i_dma_tasklet(unsigned long data)
 		spin_unlock_irq(&vchan->vc.lock);
 	}
 
-	spin_lock_irq(&sdev->lock);
-	for (pchan_idx = 0; pchan_idx < NR_MAX_CHANNELS; pchan_idx++) {
-		pchan = &sdev->pchans[pchan_idx];
+	sun6i_dma_schedule_chan(sdev);
 
-		if (pchan->vchan || list_empty(&sdev->pending))
-			continue;
-
-		vchan = list_first_entry(&sdev->pending,
-					 struct sun6i_vchan, node);
-
-		/* Remove from pending channels */
-		list_del_init(&vchan->node);
-		pchan_alloc |= BIT(pchan_idx);
-
-		/* Mark this channel allocated */
-		pchan->vchan = vchan;
-		vchan->phy = pchan;
-		dev_dbg(sdev->slave.dev, "pchan %u: alloc vchan %p\n",
-			pchan->idx, &vchan->vc);
-	}
-	spin_unlock_irq(&sdev->lock);
-
-	for (pchan_idx = 0; pchan_idx < NR_MAX_CHANNELS; pchan_idx++) {
-		if (!(pchan_alloc & BIT(pchan_idx)))
-			continue;
-
-		pchan = sdev->pchans + pchan_idx;
-		vchan = pchan->vchan;
-		if (vchan) {
-			spin_lock_irq(&vchan->vc.lock);
-			sun6i_dma_start_desc(vchan);
-			spin_unlock_irq(&vchan->vc.lock);
-		}
-	}
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t sun6i_dma_interrupt(int irq, void *dev_id)
@@ -537,9 +548,7 @@ static irqreturn_t sun6i_dma_interrupt(int irq, void *dev_id)
 			status = status >> 4;
 		}
 
-		if (!atomic_read(&sdev->tasklet_shutdown))
-			tasklet_schedule(&sdev->task);
-		ret = IRQ_HANDLED;
+		ret = IRQ_WAKE_THREAD;
 	}
 
 	return ret;
@@ -783,7 +792,7 @@ static void sun6i_dma_issue_pending(struct dma_chan *chan)
 
 		if (!vchan->phy && list_empty(&vchan->node)) {
 			list_add_tail(&vchan->node, &sdev->pending);
-			tasklet_schedule(&sdev->task);
+			sun6i_dma_schedule_chan(sdev);
 			dev_dbg(chan2dev(chan), "vchan %p: issued\n",
 				&vchan->vc);
 		}
@@ -834,22 +843,6 @@ static struct dma_chan *sun6i_dma_of_xlate(struct of_phandle_args *dma_spec,
 	vchan->port = port;
 
 	return chan;
-}
-
-static inline void sun6i_kill_tasklet(struct sun6i_dma_dev *sdev)
-{
-	/* Disable all interrupts from DMA */
-	writel(0, sdev->base + DMA_IRQ_EN(0));
-	writel(0, sdev->base + DMA_IRQ_EN(1));
-
-	/* Prevent spurious interrupts from scheduling the tasklet */
-	atomic_inc(&sdev->tasklet_shutdown);
-
-	/* Make sure all interrupts are handled */
-	synchronize_irq(sdev->irq);
-
-	/* Actually prevent the tasklet from being scheduled */
-	tasklet_kill(&sdev->task);
 }
 
 static inline void sun6i_dma_free(struct sun6i_dma_dev *sdev)
@@ -957,8 +950,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	if (!sdc->vchans)
 		return -ENOMEM;
 
-	tasklet_init(&sdc->task, sun6i_dma_tasklet, (unsigned long)sdc);
-
 	for (i = 0; i < NR_MAX_CHANNELS; i++) {
 		struct sun6i_pchan *pchan = &sdc->pchans[i];
 
@@ -986,8 +977,9 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 		goto err_reset_assert;
 	}
 
-	ret = devm_request_irq(&pdev->dev, sdc->irq, sun6i_dma_interrupt, 0,
-			       dev_name(&pdev->dev), sdc);
+	ret = devm_request_threaded_irq(&pdev->dev, sdc->irq, sun6i_dma_interrupt,
+					sun6i_dma_thread, 0, dev_name(&pdev->dev),
+					sdc);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot request IRQ\n");
 		goto err_clk_disable;
@@ -996,7 +988,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&sdc->slave);
 	if (ret) {
 		dev_warn(&pdev->dev, "Failed to register DMA engine device\n");
-		goto err_irq_disable;
+		goto err_clk_disable;
 	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node, sun6i_dma_of_xlate,
@@ -1010,8 +1002,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 
 err_dma_unregister:
 	dma_async_device_unregister(&sdc->slave);
-err_irq_disable:
-	sun6i_kill_tasklet(sdc);
 err_clk_disable:
 	clk_disable_unprepare(sdc->clk);
 err_reset_assert:
@@ -1027,8 +1017,6 @@ static int sun6i_dma_remove(struct platform_device *pdev)
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&sdc->slave);
-
-	sun6i_kill_tasklet(sdc);
 
 	clk_disable_unprepare(sdc->clk);
 	reset_control_assert(sdc->rstc);
