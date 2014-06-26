@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Maxime Ripard
+ * Copyright 2014 Maxime Ripard
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
@@ -16,30 +16,21 @@
 /include/ "sunxi-common-regulators.dtsi"
 
 / {
-	model = "WITS A31 Colombus Evaluation Board";
-	compatible = "wits,colombus", "allwinner,sun6i-a31";
+	model = "Merrii A31 Hummingbird";
+	compatible = "merrii,a31-hummingbird", "allwinner,sun6i-a31";
 
 	chosen {
-		bootargs = "earlyprintk console=ttyS0,115200";
+		bootargs = "earlyprintk console=ttyS0,115200 ip=dhcp";
 	};
 
 	soc@01c00000 {
 		mmc0: mmc@01c0f000 {
 			pinctrl-names = "default";
-			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
+			pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_hummingbird>;
 			vmmc-supply = <&reg_vcc3v0>;
 			bus-width = <4>;
 			cd-gpios = <&pio 0 8 0>; /* PA8 */
 			cd-inverted;
-			status = "okay";
-		};
-
-		usbphy: phy@01c19400 {
-			usb2_vbus-supply = <&reg_usb2_vbus>;
-			status = "okay";
-		};
-
-		ehci1: usb@01c1b000 {
 			status = "okay";
 		};
 
@@ -48,24 +39,29 @@
 				allwinner,pull = <1>;
 			};
 
-			mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
+			mmc0_cd_pin_hummingbird: mmc0_cd_pin@0 {
 				allwinner,pins = "PA8";
 				allwinner,function = "gpio_in";
 				allwinner,drive = <0>;
 				allwinner,pull = <1>;
-			};
-
-			usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
-				allwinner,pins = "PH24";
-				allwinner,function = "gpio_out";
-				allwinner,drive = <0>;
-				allwinner,pull = <0>;
 			};
 		};
 
 		uart0: serial@01c28000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_pins_a>;
+			status = "okay";
+		};
+
+		uart2: serial@01c28800 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart2_4_pins_a>;
+			status = "okay";
+		};
+
+		uart3: serial@01c28c00 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart3_4_pins_a>;
 			status = "okay";
 		};
 
@@ -87,6 +83,7 @@
 			status = "okay";
 		};
 
+
 		gmac: ethernet@01c30000 {
 			pinctrl-names = "default";
 			pinctrl-0 = <&gmac_pins_rgmii_a>;
@@ -94,16 +91,10 @@
 			phy-mode = "rgmii";
 			status = "okay";
 
-			phy1: ethernet-phy@1 {
-				reg = <1>;
+			phy1: ethernet-phy@0 {
+				reg = <0>;
 			};
 		};
-	};
 
-	reg_usb2_vbus: usb2-vbus {
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb2_vbus_pin_colombus>;
-		gpio = <&pio 7 24 0>;
-		status = "okay";
 	};
 };

@@ -469,6 +469,20 @@
 				allwinner,pull = <0>;
 			};
 
+			uart2_4_pins_a: uart2@0 {
+				allwinner,pins = "PG6", "PG7", "PG8", "PG9";
+				allwinner,function = "uart2";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
+			uart3_4_pins_a: uart3@0 {
+				allwinner,pins = "PB0", "PB4", "PB5", "PB6";
+				allwinner,function = "uart3";
+				allwinner,drive = <0>;
+				allwinner,pull = <0>;
+			};
+
 			i2c0_pins_a: i2c0@0 {
 				allwinner,pins = "PH14", "PH15";
 				allwinner,function = "i2c0";
@@ -700,6 +714,7 @@
 			clocks = <&ahb1_gates 17>, <&gmac_tx_clk>;
 			clock-names = "stmmaceth", "allwinner_gmac_tx";
 			resets = <&ahb1_rst 17>;
+			reset-names = "stmmaceth";
 			snps,pbl = <2>;
 			snps,fixed-burst;
 			snps,force_sf_dma_mode;
