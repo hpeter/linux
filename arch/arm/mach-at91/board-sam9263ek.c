@@ -405,6 +405,8 @@ static struct at91_can_data ek_can_data = {
 
 static void __init ek_board_init(void)
 {
+	at91_register_devices();
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
