@@ -28,14 +28,6 @@ config OLD_CLK_AT91
 	bool
 	default AT91_PMC_UNIT && AT91_USE_OLD_CLK
 
-config AT91_SAM9_ALT_RESET
-	bool
-	default !ARCH_AT91X40
-
-config AT91_SAM9G45_RESET
-	bool
-	default !ARCH_AT91X40
-
 config AT91_SAM9_TIME
 	bool
 
