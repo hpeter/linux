@@ -248,7 +248,6 @@ static int audmapp_chan_probe(struct platform_device *pdev,
 
 static void audmapp_chan_remove(struct audmapp_device *audev)
 {
-	struct dma_device *dma_dev = &audev->shdma_dev.dma_dev;
 	struct shdma_chan *schan;
 	int i;
 
@@ -256,7 +255,6 @@ static void audmapp_chan_remove(struct audmapp_device *audev)
 		BUG_ON(!schan);
 		shdma_chan_remove(schan);
 	}
-	dma_dev->chancnt = 0;
 }
 
 static struct dma_chan *audmapp_of_xlate(struct of_phandle_args *dma_spec,
