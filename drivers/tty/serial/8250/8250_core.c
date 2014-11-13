@@ -541,23 +541,25 @@ void serial8250_clear_and_reinit_fifos(struct uart_8250_port *p)
 }
 EXPORT_SYMBOL_GPL(serial8250_clear_and_reinit_fifos);
 
-static void serial8250_rpm_get(struct uart_8250_port *p)
+void serial8250_rpm_get(struct uart_8250_port *p)
 {
 	if (!(p->capabilities & UART_CAP_RPM))
 		return;
 	pm_runtime_get_sync(p->port.dev);
 }
+EXPORT_SYMBOL_GPL(serial8250_rpm_get);
 
-static void serial8250_rpm_put(struct uart_8250_port *p)
+void serial8250_rpm_put(struct uart_8250_port *p)
 {
 	if (!(p->capabilities & UART_CAP_RPM))
 		return;
 	pm_runtime_mark_last_busy(p->port.dev);
 	pm_runtime_put_autosuspend(p->port.dev);
 }
+EXPORT_SYMBOL_GPL(serial8250_rpm_put);
 
 /*
- * This two wrapper ensure, that enable_runtime_pm_tx() can be called more than
+ * These two wrappers ensure that enable_runtime_pm_tx() can be called more than
  * once and disable_runtime_pm_tx() will still disable RPM because the fifo is
  * empty and the HW can idle again.
  */
@@ -595,6 +597,7 @@ static void serial8250_rpm_put_tx(struct uart_8250_port *p)
  */
 static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 {
+	unsigned char lcr = 0, efr = 0;
 	/*
 	 * Exar UARTs have a SLEEP register that enables or disables
 	 * each UART to enter sleep mode separately.  On the XR17V35x the
@@ -611,6 +614,8 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 
 	if (p->capabilities & UART_CAP_SLEEP) {
 		if (p->capabilities & UART_CAP_EFR) {
+			lcr = serial_in(p, UART_LCR);
+			efr = serial_in(p, UART_EFR);
 			serial_out(p, UART_LCR, UART_LCR_CONF_MODE_B);
 			serial_out(p, UART_EFR, UART_EFR_ECB);
 			serial_out(p, UART_LCR, 0);
@@ -618,8 +623,8 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 		serial_out(p, UART_IER, sleep ? UART_IERX_SLEEP : 0);
 		if (p->capabilities & UART_CAP_EFR) {
 			serial_out(p, UART_LCR, UART_LCR_CONF_MODE_B);
-			serial_out(p, UART_EFR, 0);
-			serial_out(p, UART_LCR, 0);
+			serial_out(p, UART_EFR, efr);
+			serial_out(p, UART_LCR, lcr);
 		}
 	}
 out:
@@ -1350,7 +1355,7 @@ static void serial8250_start_tx(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 
 	serial8250_rpm_get_tx(up);
-	if (up->dma && !serial8250_tx_dma(up)) {
+	if (up->dma && !up->dma->tx_dma(up)) {
 		return;
 	} else if (!(up->ier & UART_IER_THRI)) {
 		up->ier |= UART_IER_THRI;
@@ -1532,7 +1537,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 	DEBUG_INTR("THRE...");
 
 	/*
-	 * With RPM enabled, we have to wait once the FIFO is empty before the
+	 * With RPM enabled, we have to wait until the FIFO is empty before the
 	 * HW can go idle. So we get here once again with empty FIFO and disable
 	 * the interrupt and RPM in __stop_tx()
 	 */
@@ -1588,13 +1593,14 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
 		if (up->dma)
-			dma_err = serial8250_rx_dma(up, iir);
+			dma_err = up->dma->rx_dma(up, iir);
 
 		if (!up->dma || dma_err)
 			status = serial8250_rx_chars(up, status);
 	}
 	serial8250_modem_status(up);
-	if (!up->dma && (status & UART_LSR_THRE))
+	if ((!up->dma || (up->dma && up->dma->tx_err)) &&
+	    (status & UART_LSR_THRE))
 		serial8250_tx_chars(up);
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -2634,8 +2640,11 @@ serial8250_pm(struct uart_port *port, unsigned int state,
 
 static unsigned int serial8250_port_size(struct uart_8250_port *pt)
 {
-	if (pt->port.iotype == UPIO_AU)
+	if (pt->port.iotype == UPIO_AU) {
+		if (pt->port.type == PORT_RT2880)
+			return 0x100;
 		return 0x1000;
+	}
 	if (is_omap1_8250(pt))
 		return 0x16 << pt->port.regshift;
 
@@ -3237,7 +3246,7 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	serial8250_rpm_put(up);
 }
 
-static int __init serial8250_console_setup(struct console *co, char *options)
+static int serial8250_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;
@@ -3623,8 +3632,13 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			uart->dl_read = up->dl_read;
 		if (up->dl_write)
 			uart->dl_write = up->dl_write;
-		if (up->dma)
+		if (up->dma) {
 			uart->dma = up->dma;
+			if (!uart->dma->tx_dma)
+				uart->dma->tx_dma = serial8250_tx_dma;
+			if (!uart->dma->rx_dma)
+				uart->dma->rx_dma = serial8250_rx_dma;
+		}
 
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(0, &uart->port,
