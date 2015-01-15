@@ -916,10 +916,6 @@ static const struct gates_data sun5i_a13_ahb_gates_data __initconst = {
 	.mask = {0x107067e7, 0x185111},
 };
 
-static const struct gates_data sun7i_a20_ahb_gates_data __initconst = {
-	.mask = { 0x12f77fff, 0x16ff3f },
-};
-
 static const struct gates_data sun8i_a23_ahb1_gates_data __initconst = {
 	.mask = {0x25386742, 0x2505111},
 };
@@ -948,10 +944,6 @@ static const struct gates_data sun5i_a13_apb0_gates_data __initconst = {
 	.mask = {0x61},
 };
 
-static const struct gates_data sun7i_a20_apb0_gates_data __initconst = {
-	.mask = { 0x4ff },
-};
-
 static const struct gates_data sun9i_a80_apb0_gates_data __initconst = {
 	.mask = {0xEB822},
 };
@@ -970,10 +962,6 @@ static const struct gates_data sun5i_a13_apb1_gates_data __initconst = {
 
 static const struct gates_data sun8i_a23_apb1_gates_data __initconst = {
 	.mask = {0x3021},
-};
-
-static const struct gates_data sun7i_a20_apb1_gates_data __initconst = {
-	.mask = { 0xff80ff },
 };
 
 static const struct gates_data sun9i_a80_apb1_gates_data __initconst = {
@@ -1275,7 +1263,6 @@ static const struct of_device_id clk_gates_match[] __initconst = {
 	{.compatible = "allwinner,sun4i-a10-ahb-gates-clk", .data = &sun4i_ahb_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-ahb-gates-clk", .data = &sun5i_a10s_ahb_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-ahb-gates-clk", .data = &sun5i_a13_ahb_gates_data,},
-	{.compatible = "allwinner,sun7i-a20-ahb-gates-clk", .data = &sun7i_a20_ahb_gates_data,},
 	{.compatible = "allwinner,sun8i-a23-ahb1-gates-clk", .data = &sun8i_a23_ahb1_gates_data,},
 	{.compatible = "allwinner,sun9i-a80-ahb0-gates-clk", .data = &sun9i_a80_ahb0_gates_data,},
 	{.compatible = "allwinner,sun9i-a80-ahb1-gates-clk", .data = &sun9i_a80_ahb1_gates_data,},
@@ -1283,12 +1270,10 @@ static const struct of_device_id clk_gates_match[] __initconst = {
 	{.compatible = "allwinner,sun4i-a10-apb0-gates-clk", .data = &sun4i_apb0_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-apb0-gates-clk", .data = &sun5i_a10s_apb0_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-apb0-gates-clk", .data = &sun5i_a13_apb0_gates_data,},
-	{.compatible = "allwinner,sun7i-a20-apb0-gates-clk", .data = &sun7i_a20_apb0_gates_data,},
 	{.compatible = "allwinner,sun9i-a80-apb0-gates-clk", .data = &sun9i_a80_apb0_gates_data,},
 	{.compatible = "allwinner,sun4i-a10-apb1-gates-clk", .data = &sun4i_apb1_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-apb1-gates-clk", .data = &sun5i_a10s_apb1_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-apb1-gates-clk", .data = &sun5i_a13_apb1_gates_data,},
-	{.compatible = "allwinner,sun7i-a20-apb1-gates-clk", .data = &sun7i_a20_apb1_gates_data,},
 	{.compatible = "allwinner,sun8i-a23-apb1-gates-clk", .data = &sun8i_a23_apb1_gates_data,},
 	{.compatible = "allwinner,sun9i-a80-apb1-gates-clk", .data = &sun9i_a80_apb1_gates_data,},
 	{.compatible = "allwinner,sun8i-a23-apb2-gates-clk", .data = &sun8i_a23_apb2_gates_data,},
