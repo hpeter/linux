@@ -1429,6 +1429,7 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 	struct ntb_transport_qp *qp;
 	struct ntb_transport *nt;
 	unsigned int free_queue;
+	dma_cap_mask_t mask;
 	int rc, i;
 
 	nt = ntb_find_transport(pdev);
@@ -1450,12 +1451,11 @@ ntb_transport_create_queue(void *data, struct pci_dev *pdev,
 	qp->tx_handler = handlers->tx_handler;
 	qp->event_handler = handlers->event_handler;
 
-	dmaengine_get();
-	qp->dma_chan = dma_find_channel(DMA_MEMCPY);
-	if (!qp->dma_chan) {
-		dmaengine_put();
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY);
+	qp->dma_chan = dma_request_channel(mask, NULL, NULL);
+	if (!qp->dma_chan)
 		dev_info(&pdev->dev, "Unable to allocate DMA channel, using CPU instead\n");
-	}
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
 		entry = kzalloc(sizeof(struct ntb_queue_entry), GFP_ATOMIC);
@@ -1492,8 +1492,6 @@ err2:
 err1:
 	while ((entry = ntb_list_rm(&qp->ntb_rx_free_q_lock, &qp->rx_free_q)))
 		kfree(entry);
-	if (qp->dma_chan)
-		dmaengine_put();
 	set_bit(free_queue, &nt->qp_bitmap);
 err:
 	return NULL;
@@ -1528,7 +1526,7 @@ void ntb_transport_free_queue(struct ntb_transport_qp *qp)
 		 */
 		dma_sync_wait(chan, qp->last_cookie);
 		dmaengine_terminate_all(chan);
-		dmaengine_put();
+		dma_release_channel(chan);
 	}
 
 	ntb_unregister_db_callback(qp->ndev, qp->qp_num);
