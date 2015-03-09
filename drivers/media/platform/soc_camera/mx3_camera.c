@@ -1222,9 +1222,6 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto ecamhostreg;
 
-	/* IDMAC interface */
-	dmaengine_get();
-
 	return 0;
 
 ecamhostreg:
@@ -1248,8 +1245,6 @@ static int mx3_camera_remove(struct platform_device *pdev)
 		dma_release_channel(&mx3_cam->idmac_channel[0]->dma_chan);
 
 	vb2_dma_contig_cleanup_ctx(mx3_cam->alloc_ctx);
-
-	dmaengine_put();
 
 	return 0;
 }
