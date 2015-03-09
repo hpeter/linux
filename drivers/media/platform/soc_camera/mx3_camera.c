@@ -766,7 +766,6 @@ static int acquire_dma_channel(struct mx3_camera_dev *mx3_cam)
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-	dma_cap_set(DMA_PRIVATE, mask);
 	chan = dma_request_channel(mask, chan_filter, &rq);
 	if (!chan)
 		return -EBUSY;
