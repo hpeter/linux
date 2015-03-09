@@ -1585,9 +1585,6 @@ static int mx3fb_probe(struct platform_device *pdev)
 
 	pr_debug("Remapped %pR at %p\n", sdc_reg, mx3fb->reg_base);
 
-	/* IDMAC interface */
-	dmaengine_get();
-
 	mx3fb->dev = dev;
 	platform_set_drvdata(pdev, mx3fb);
 
@@ -1595,7 +1592,6 @@ static int mx3fb_probe(struct platform_device *pdev)
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
-	dma_cap_set(DMA_PRIVATE, mask);
 	rq.id = IDMAC_SDC_0;
 	chan = dma_request_channel(mask, chan_filter, &rq);
 	if (!chan) {
@@ -1616,7 +1612,6 @@ static int mx3fb_probe(struct platform_device *pdev)
 eisdc0:
 	dma_release_channel(chan);
 ersdc0:
-	dmaengine_put();
 	iounmap(mx3fb->reg_base);
 eremap:
 	dev_err(dev, "mx3fb: failed to register fb\n");
@@ -1636,7 +1631,6 @@ static int mx3fb_remove(struct platform_device *dev)
 	mx3fb_exit_backlight(mx3fb);
 
 	dma_release_channel(chan);
-	dmaengine_put();
 
 	iounmap(mx3fb->reg_base);
 	return 0;
