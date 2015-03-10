@@ -352,6 +352,7 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 {
 	void *scribble = submit->scribble;
 	int non_zero_srcs, i;
+	dma_cap_mask_t mask;
 
 	BUG_ON(faila == failb);
 	if (failb < faila)
@@ -359,12 +360,15 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 
 	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
 
+	dma_cap_zero(mask);
+	dma_cap_set(tx_type, mask);
+
 	/* if a dma resource is not available or a scribble buffer is not
 	 * available punt to the synchronous path.  In the 'dma not
 	 * available' case be sure to use the scribble buffer to
 	 * preserve the content of 'blocks' as the caller intended.
 	 */
-	if (!async_dma_find_channel(DMA_PQ) || !scribble) {
+	if (!dma_available_channel(mask) || !scribble) {
 		void **ptrs = scribble ? scribble : (void **) blocks;
 
 		async_tx_quiesce(&submit->depend_tx);
@@ -432,15 +436,19 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 	void *scribble = submit->scribble;
 	int good_srcs, good, i;
 	struct page *srcs[2];
+	dma_cap_mask_t mask;
 
 	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_PQ, mask);
 
 	/* if a dma resource is not available or a scribble buffer is not
 	 * available punt to the synchronous path.  In the 'dma not
 	 * available' case be sure to use the scribble buffer to
 	 * preserve the content of 'blocks' as the caller intended.
 	 */
-	if (!async_dma_find_channel(DMA_PQ) || !scribble) {
+	if (!dma_available_channel(mask) || !scribble) {
 		void **ptrs = scribble ? scribble : (void **) blocks;
 
 		async_tx_quiesce(&submit->depend_tx);

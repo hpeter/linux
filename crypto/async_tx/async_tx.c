@@ -29,23 +29,6 @@
 #include <linux/async_tx.h>
 
 #ifdef CONFIG_DMA_ENGINE
-static int __init async_tx_init(void)
-{
-	async_dmaengine_get();
-
-	printk(KERN_INFO "async_tx: api initialized (async)\n");
-
-	return 0;
-}
-
-static void __exit async_tx_exit(void)
-{
-	async_dmaengine_put();
-}
-
-module_init(async_tx_init);
-module_exit(async_tx_exit);
-
 /**
  * __async_tx_find_channel - find a channel to carry out the operation or let
  *	the transaction execute synchronously
@@ -57,12 +40,17 @@ __async_tx_find_channel(struct async_submit_ctl *submit,
 			enum dma_transaction_type tx_type)
 {
 	struct dma_async_tx_descriptor *depend_tx = submit->depend_tx;
+	dma_cap_mask_t mask;
 
 	/* see if we can keep the chain on one channel */
 	if (depend_tx &&
 	    dma_has_cap(tx_type, depend_tx->chan->device->cap_mask))
 		return depend_tx->chan;
-	return async_dma_find_channel(tx_type);
+
+	dma_cap_zero(mask);
+	dma_cap_set(tx_type, mask);
+
+	return dma_request_shared_channel(mask);
 }
 EXPORT_SYMBOL_GPL(__async_tx_find_channel);
 #endif
