@@ -133,9 +133,6 @@ static struct class dma_devclass = {
 };
 
 /* --- client and device registration --- */
-
-#define dma_device_satisfies_mask(device, mask) \
-	__dma_device_satisfies_mask((device), &(mask))
 static int
 __dma_device_satisfies_mask(struct dma_device *device,
 			    const dma_cap_mask_t *want)
