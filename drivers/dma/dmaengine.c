@@ -88,50 +88,6 @@ static struct dma_chan *dev_to_dma_chan(struct device *dev)
 	return chan_dev->chan;
 }
 
-static ssize_t memcpy_count_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct dma_chan *chan;
-	unsigned long count = 0;
-	int i;
-	int err;
-
-	mutex_lock(&dma_list_mutex);
-	chan = dev_to_dma_chan(dev);
-	if (chan) {
-		for_each_possible_cpu(i)
-			count += per_cpu_ptr(chan->local, i)->memcpy_count;
-		err = sprintf(buf, "%lu\n", count);
-	} else
-		err = -ENODEV;
-	mutex_unlock(&dma_list_mutex);
-
-	return err;
-}
-static DEVICE_ATTR_RO(memcpy_count);
-
-static ssize_t bytes_transferred_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
-{
-	struct dma_chan *chan;
-	unsigned long count = 0;
-	int i;
-	int err;
-
-	mutex_lock(&dma_list_mutex);
-	chan = dev_to_dma_chan(dev);
-	if (chan) {
-		for_each_possible_cpu(i)
-			count += per_cpu_ptr(chan->local, i)->bytes_transferred;
-		err = sprintf(buf, "%lu\n", count);
-	} else
-		err = -ENODEV;
-	mutex_unlock(&dma_list_mutex);
-
-	return err;
-}
-static DEVICE_ATTR_RO(bytes_transferred);
-
 static ssize_t in_use_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -151,8 +107,6 @@ static ssize_t in_use_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR_RO(in_use);
 
 static struct attribute *dma_dev_attrs[] = {
-	&dev_attr_memcpy_count.attr,
-	&dev_attr_bytes_transferred.attr,
 	&dev_attr_in_use.attr,
 	NULL,
 };
@@ -867,14 +821,9 @@ int dma_async_device_register(struct dma_device *device)
 
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
-		rc = -ENOMEM;
-		chan->local = alloc_percpu(typeof(*chan->local));
-		if (chan->local == NULL)
-			goto err_out;
 		chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
 		if (chan->dev == NULL) {
-			free_percpu(chan->local);
-			chan->local = NULL;
+			rc = -ENOMEM;
 			goto err_out;
 		}
 
@@ -890,8 +839,6 @@ int dma_async_device_register(struct dma_device *device)
 
 		rc = device_register(&chan->dev->device);
 		if (rc) {
-			free_percpu(chan->local);
-			chan->local = NULL;
 			kfree(chan->dev);
 			atomic_dec(idr_ref);
 			goto err_out;
@@ -936,13 +883,10 @@ err_out:
 	}
 
 	list_for_each_entry(chan, &device->channels, device_node) {
-		if (chan->local == NULL)
-			continue;
 		mutex_lock(&dma_list_mutex);
 		chan->dev->chan = NULL;
 		mutex_unlock(&dma_list_mutex);
 		device_unregister(&chan->dev->device);
-		free_percpu(chan->local);
 	}
 	return rc;
 }
@@ -972,7 +916,6 @@ void dma_async_device_unregister(struct dma_device *device)
 		chan->dev->chan = NULL;
 		mutex_unlock(&dma_list_mutex);
 		device_unregister(&chan->dev->device);
-		free_percpu(chan->local);
 	}
 }
 EXPORT_SYMBOL(dma_async_device_unregister);

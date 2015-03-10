@@ -214,18 +214,6 @@ enum sum_check_flags {
 typedef struct { DECLARE_BITMAP(bits, DMA_TX_TYPE_END); } dma_cap_mask_t;
 
 /**
- * struct dma_chan_percpu - the per-CPU part of struct dma_chan
- * @memcpy_count: transaction counter
- * @bytes_transferred: byte counter
- */
-
-struct dma_chan_percpu {
-	/* stats */
-	unsigned long memcpy_count;
-	unsigned long bytes_transferred;
-};
-
-/**
  * struct dma_chan - devices supply DMA channels, clients use them
  * @device: ptr to the dma device who supplies this channel, always !%NULL
  * @cookie: last cookie value returned to client
@@ -248,7 +236,6 @@ struct dma_chan {
 	struct dma_chan_dev *dev;
 
 	struct list_head device_node;
-	struct dma_chan_percpu __percpu *local;
 	int client_count;
 	int table_count;
 	void *private;
