@@ -99,9 +99,12 @@ static void __init sunxi_simple_gates_init(struct device_node *node)
 	sunxi_simple_gates_setup(node, NULL, 0);
 }
 
-CLK_OF_DECLARE(sun6i_a31_ahb1, "allwinner,sun6i-a31-ahb1-gates-clk", sunxi_simple_gates_init);
-CLK_OF_DECLARE(sun6i_a31_apb1, "allwinner,sun6i-a31-apb1-gates-clk", sunxi_simple_gates_init);
-CLK_OF_DECLARE(sun6i_a31_apb2, "allwinner,sun6i-a31-apb2-gates-clk", sunxi_simple_gates_init);
+CLK_OF_DECLARE(sun6i_a31_ahb1, "allwinner,sun6i-a31-ahb1-gates-clk",
+	       sunxi_simple_gates_init);
+CLK_OF_DECLARE(sun6i_a31_apb1, "allwinner,sun6i-a31-apb1-gates-clk",
+	       sunxi_simple_gates_init);
+CLK_OF_DECLARE(sun6i_a31_apb2, "allwinner,sun6i-a31-apb2-gates-clk",
+	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun7i_a20_ahb, "allwinner,sun7i-a20-ahb-gates-clk", sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun7i_a20_apb0, "allwinner,sun7i-a20-apb0-gates-clk", sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun7i_a20_apb1, "allwinner,sun7i-a20-apb1-gates-clk", sunxi_simple_gates_init);
