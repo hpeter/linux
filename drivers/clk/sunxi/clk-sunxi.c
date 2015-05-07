@@ -904,10 +904,6 @@ static const struct gates_data sun4i_axi_gates_data __initconst = {
 	.mask = {1},
 };
 
-static const struct gates_data sun4i_ahb_gates_data __initconst = {
-	.mask = {0x7F77FFF, 0x14FB3F},
-};
-
 static const struct gates_data sun5i_a10s_ahb_gates_data __initconst = {
 	.mask = {0x147667e7, 0x185915},
 };
@@ -916,20 +912,12 @@ static const struct gates_data sun5i_a13_ahb_gates_data __initconst = {
 	.mask = {0x107067e7, 0x185111},
 };
 
-static const struct gates_data sun4i_apb0_gates_data __initconst = {
-	.mask = {0x4EF},
-};
-
 static const struct gates_data sun5i_a10s_apb0_gates_data __initconst = {
 	.mask = {0x469},
 };
 
 static const struct gates_data sun5i_a13_apb0_gates_data __initconst = {
 	.mask = {0x61},
-};
-
-static const struct gates_data sun4i_apb1_gates_data __initconst = {
-	.mask = {0xFF00F7},
 };
 
 static const struct gates_data sun5i_a10s_apb1_gates_data __initconst = {
@@ -1228,13 +1216,10 @@ static const struct of_device_id clk_mux_match[] __initconst = {
 /* Matches for gate clocks */
 static const struct of_device_id clk_gates_match[] __initconst = {
 	{.compatible = "allwinner,sun4i-a10-axi-gates-clk", .data = &sun4i_axi_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-ahb-gates-clk", .data = &sun4i_ahb_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-ahb-gates-clk", .data = &sun5i_a10s_ahb_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-ahb-gates-clk", .data = &sun5i_a13_ahb_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-apb0-gates-clk", .data = &sun4i_apb0_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-apb0-gates-clk", .data = &sun5i_a10s_apb0_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-apb0-gates-clk", .data = &sun5i_a13_apb0_gates_data,},
-	{.compatible = "allwinner,sun4i-a10-apb1-gates-clk", .data = &sun4i_apb1_gates_data,},
 	{.compatible = "allwinner,sun5i-a10s-apb1-gates-clk", .data = &sun5i_a10s_apb1_gates_data,},
 	{.compatible = "allwinner,sun5i-a13-apb1-gates-clk", .data = &sun5i_a13_apb1_gates_data,},
 	{}
