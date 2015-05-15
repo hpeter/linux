@@ -241,6 +241,7 @@
 			compatible = "allwinner,sun4i-a10-axi-gates-clk";
 			reg = <0x01c2005c 0x4>;
 			clocks = <&axi>;
+			clock-indices = <0>;
 			clock-output-names = "axi_dram";
 		};
 
@@ -274,8 +275,8 @@
 					<50>, <52>;
 			clock-output-names = "ahb_usb0", "ahb_ehci0",
 					     "ahb_ohci0", "ahb_ehci1",
-					     "ahb_ohci1", "ahb_ss", "ahb_dma"
-					     "ahb_bist", "ahb_mmc0", "ahb_mmc1"
+					     "ahb_ohci1", "ahb_ss", "ahb_dma",
+					     "ahb_bist", "ahb_mmc0", "ahb_mmc1",
 					     "ahb_mmc2", "ahb_mmc3", "ahb_ms",
 					     "ahb_nand", "ahb_sdram", "ahb_ace",
 					     "ahb_emac", "ahb_ts", "ahb_spi0",

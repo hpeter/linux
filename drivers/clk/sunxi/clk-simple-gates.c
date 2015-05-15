@@ -99,19 +99,15 @@ static void __init sunxi_simple_gates_init(struct device_node *node)
 	sunxi_simple_gates_setup(node, NULL, 0);
 }
 
-CLK_OF_DECLARE(sun4i_a10_ahb, "allwinner,sun4i-a10-ahb-gates-clk",
-	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun4i_a10_apb0, "allwinner,sun4i-a10-apb0-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun4i_a10_apb1, "allwinner,sun4i-a10-apb1-gates-clk",
 	       sunxi_simple_gates_init);
-CLK_OF_DECLARE(sun5i_a10s_ahb, "allwinner,sun5i-a10s-ahb-gates-clk",
+CLK_OF_DECLARE(sun4i_a10_axi, "allwinner,sun4i-a10-axi-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun5i_a10s_apb0, "allwinner,sun5i-a10s-apb0-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun5i_a10s_apb1, "allwinner,sun5i-a10s-apb1-gates-clk",
-	       sunxi_simple_gates_init);
-CLK_OF_DECLARE(sun5i_a13_ahb, "allwinner,sun5i-a13-ahb-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun5i_a13_apb0, "allwinner,sun5i-a13-apb0-gates-clk",
 	       sunxi_simple_gates_init);
@@ -122,8 +118,6 @@ CLK_OF_DECLARE(sun6i_a31_ahb1, "allwinner,sun6i-a31-ahb1-gates-clk",
 CLK_OF_DECLARE(sun6i_a31_apb1, "allwinner,sun6i-a31-apb1-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun6i_a31_apb2, "allwinner,sun6i-a31-apb2-gates-clk",
-	       sunxi_simple_gates_init);
-CLK_OF_DECLARE(sun7i_a20_ahb, "allwinner,sun7i-a20-ahb-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun7i_a20_apb0, "allwinner,sun7i-a20-apb0-gates-clk",
 	       sunxi_simple_gates_init);
@@ -145,3 +139,21 @@ CLK_OF_DECLARE(sun9i_a80_apb0, "allwinner,sun9i-a80-apb0-gates-clk",
 	       sunxi_simple_gates_init);
 CLK_OF_DECLARE(sun9i_a80_apb1, "allwinner,sun9i-a80-apb1-gates-clk",
 	       sunxi_simple_gates_init);
+
+static const int sun4i_a10_ahb_critical_clocks[] __initdata = {
+	14,	/* ahb_sdram */
+};
+
+static void __init sun4i_a10_ahb_init(struct device_node *node)
+{
+	sunxi_simple_gates_setup(node, sun4i_a10_ahb_critical_clocks,
+				 ARRAY_SIZE(sun4i_a10_ahb_critical_clocks));
+}
+CLK_OF_DECLARE(sun4i_a10_ahb, "allwinner,sun4i-a10-ahb-gates-clk",
+	       sun4i_a10_ahb_init);
+CLK_OF_DECLARE(sun5i_a10s_ahb, "allwinner,sun5i-a10s-ahb-gates-clk",
+	       sun4i_a10_ahb_init);
+CLK_OF_DECLARE(sun5i_a13_ahb, "allwinner,sun5i-a13-ahb-gates-clk",
+	       sun4i_a10_ahb_init);
+CLK_OF_DECLARE(sun7i_a20_ahb, "allwinner,sun7i-a20-ahb-gates-clk",
+	       sun4i_a10_ahb_init);
