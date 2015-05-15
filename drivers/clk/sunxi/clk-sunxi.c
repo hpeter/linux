@@ -904,18 +904,6 @@ static const struct gates_data sun4i_axi_gates_data __initconst = {
 	.mask = {1},
 };
 
-static const struct gates_data sun5i_a13_ahb_gates_data __initconst = {
-	.mask = {0x107067e7, 0x185111},
-};
-
-static const struct gates_data sun5i_a13_apb0_gates_data __initconst = {
-	.mask = {0x61},
-};
-
-static const struct gates_data sun5i_a13_apb1_gates_data __initconst = {
-	.mask = {0xa0007},
-};
-
 static void __init sunxi_gates_clk_setup(struct device_node *node,
 					 struct gates_data *data)
 {
@@ -1204,9 +1192,6 @@ static const struct of_device_id clk_mux_match[] __initconst = {
 /* Matches for gate clocks */
 static const struct of_device_id clk_gates_match[] __initconst = {
 	{.compatible = "allwinner,sun4i-a10-axi-gates-clk", .data = &sun4i_axi_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-ahb-gates-clk", .data = &sun5i_a13_ahb_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-apb0-gates-clk", .data = &sun5i_a13_apb0_gates_data,},
-	{.compatible = "allwinner,sun5i-a13-apb1-gates-clk", .data = &sun5i_a13_apb1_gates_data,},
 	{}
 };
 
