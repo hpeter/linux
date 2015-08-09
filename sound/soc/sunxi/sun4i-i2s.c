@@ -15,10 +15,13 @@
 #include <linux/regmap.h>
 
 #include <sound/dmaengine_pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 
 #define SUN4I_I2S_CTRL_REG		0x00
+#define SUN4I_I2S_CTRL_SDO_EN_MASK		GENMASK(11, 8)
+#define SUN4I_I2S_CTRL_SDO_EN(sdo)			BIT(8 + (sdo))
 #define SUN4I_I2S_CTRL_MODE_MASK		BIT(5)
 #define SUN4I_I2S_CTRL_MODE_SLAVE			(1 << 5)
 #define SUN4I_I2S_CTRL_MODE_MASTER			(0 << 5)
@@ -31,6 +34,10 @@
 #define SUN4I_I2S_FMT0_BCLK_POLARITY_MASK	BIT(6)
 #define SUN4I_I2S_FMT0_BCLK_POLARITY_INVERTED		(1 << 6)
 #define SUN4I_I2S_FMT0_BCLK_POLARITY_NORMAL		(0 << 6)
+#define SUN4I_I2S_FMT0_SR_MASK			GENMASK(5, 4)
+#define SUN4I_I2S_FMT0_SR(sr)				((sr) << 4)
+#define SUN4I_I2S_FMT0_WSS_MASK			GENMASK(3, 2)
+#define SUN4I_I2S_FMT0_WSS(wss)				((wss) << 2)
 #define SUN4I_I2S_FMT0_FMT_MASK			GENMASK(1, 0)
 #define SUN4I_I2S_FMT0_FMT_RIGHT_J			(2 << 0)
 #define SUN4I_I2S_FMT0_FMT_LEFT_J			(1 << 0)
@@ -46,8 +53,13 @@
 #define SUN4I_I2S_CLK_DIV_REG		0x24
 #define SUN4I_I2S_RX_CNT_REG		0x28
 #define SUN4I_I2S_TX_CNT_REG		0x2c
+
 #define SUN4I_I2S_TX_CHAN_SEL_REG	0x30
+#define SUN4I_I2S_TX_CHAN_SEL(num_chan)		(((num_chan) - 1) << 0)
+
 #define SUN4I_I2S_TX_CHAN_MAP_REG	0x34
+#define SUN4I_I2S_TX_CHAN_MAP(chan, sample)	((sample) << (chan << 2))
+
 #define SUN4I_I2S_RX_CHAN_SEL_REG	0x38
 #define SUN4I_I2S_RX_CHAN_MAP_REG	0x3c
 
@@ -55,9 +67,71 @@ struct sun4i_i2s {
 	struct clk	*mod_clk;
 	struct regmap	*regmap;
 
-	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
 };
+
+static u8 sun4i_i2s_params_to_sr(struct snd_pcm_hw_params *params)
+{
+	switch (params_width(params)) {
+	case 24:
+		return 2;
+	}
+
+	return 0;
+}
+
+static u8 sun4i_i2s_params_to_wss(struct snd_pcm_hw_params *params)
+{
+	switch (params_width(params)) {
+	case 24:
+		return 2;
+	}
+
+	return 0;
+}
+
+static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
+			       struct snd_pcm_hw_params *params,
+			       struct snd_soc_dai *dai)
+{
+	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	u32 width;
+	u8 sr, wss;
+
+	if (params_channels(params) != 2)
+		return -EINVAL;
+
+	/* FIXME: Understand what SDO are */
+	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
+			   SUN4I_I2S_CTRL_SDO_EN_MASK,
+			   SUN4I_I2S_CTRL_SDO_EN(0));
+
+	/* Enable the first two channels */
+	regmap_write(i2s->regmap, SUN4I_I2S_TX_CHAN_SEL_REG,
+		     SUN4I_I2S_TX_CHAN_SEL(2));
+
+	/* Map them to the two first samples coming in */
+	regmap_write(i2s->regmap, SUN4I_I2S_TX_CHAN_MAP_REG,
+		     SUN4I_I2S_TX_CHAN_MAP(0, 0) | SUN4I_I2S_TX_CHAN_MAP(1, 1));
+
+	switch (params_physical_width(params)) {
+	case 32:
+		width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+		break;
+	default:
+		return -EINVAL;
+	}
+	i2s->playback_dma_data.addr_width = width;
+
+	sr = sun4i_i2s_params_to_sr(params);
+	wss = sun4i_i2s_params_to_wss(params);
+	regmap_update_bits(i2s->regmap, SUN4I_I2S_FMT0_REG,
+			   SUN4I_I2S_FMT0_WSS_MASK | SUN4I_I2S_FMT0_SR_MASK,
+			   SUN4I_I2S_FMT0_WSS(wss) | SUN4I_I2S_FMT0_SR(sr));
+
+        return 0;
+ 
+}
 
 static int sun4i_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
@@ -136,6 +210,7 @@ static int sun4i_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 }
 
 static const struct snd_soc_dai_ops sun4i_i2s_dai_ops = {
+	.hw_params	= sun4i_i2s_hw_params,
 	.set_fmt	= sun4i_i2s_set_fmt,
 };
 
@@ -147,8 +222,7 @@ static int sun4i_i2s_dai_probe(struct snd_soc_dai *dai)
 	regmap_write(i2s->regmap, SUN4I_I2S_CTRL_REG,
 		     SUN4I_I2S_CTRL_GLOBAL_ENABLE);
 
-	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data,
-				  &i2s->capture_dma_data);
+	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data, NULL);
 
 	snd_soc_dai_set_drvdata(dai, i2s);
 
@@ -159,19 +233,10 @@ static struct snd_soc_dai_driver sun4i_i2s_dai = {
 	.probe = sun4i_i2s_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
-		.channels_min = 1,
-		.channels_max = 8,
+		.channels_min = 2,
+		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S24_LE),
-	},
-	.capture = {
-		.stream_name = "Capture",
-		.channels_min = 1,
-		.channels_max = 4,
-		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE |
-			    SNDRV_PCM_FMTBIT_S24_LE),
+		.formats = SNDRV_PCM_FMTBIT_S24_LE,
 	},
 	.ops = &sun4i_i2s_dai_ops,
 	.symmetric_rates = 1,
@@ -226,12 +291,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 	}
 	
 	i2s->playback_dma_data.addr = res->start + SUN4I_I2S_FIFO_TX_REG;
-	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s->playback_dma_data.maxburst = 4;
-
-	i2s->capture_dma_data.addr = res->start + SUN4I_I2S_FIFO_RX_REG;
-	i2s->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	i2s->capture_dma_data.maxburst = 4;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &sun4i_i2s_component,
