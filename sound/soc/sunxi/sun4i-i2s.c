@@ -100,6 +100,94 @@ static u8 sun4i_i2s_params_to_wss(struct snd_pcm_hw_params *params)
 	return 0;
 }
 
+static int sun4i_i2s_valid_bclk_div[] = { 2, 4, 6, 8, 12, 16 };
+
+static int sun4i_i2s_get_best_bclk_div(struct sun4i_i2s *i2s,
+				       unsigned int oversample_rate,
+				       unsigned int word_size)
+{
+	int div = oversample_rate / word_size / 2;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sun4i_i2s_valid_bclk_div); i++) {
+		int valid_div = sun4i_i2s_valid_bclk_div[i];
+
+		if (div == valid_div)
+			return div;
+	}
+
+	return -EINVAL;
+}
+
+static int sun4i_i2s_valid_mclk_div[] = { 1, 2, 4, 6, 8, 12, 16, 24 };
+
+static int sun4i_i2s_get_best_mclk_div(struct sun4i_i2s *i2s,
+				       unsigned int oversample_rate,
+				       unsigned int module_rate,
+				       unsigned int sampling_rate)
+{
+	int div = module_rate / sampling_rate / oversample_rate;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sun4i_i2s_valid_mclk_div); i++) {
+		int valid_div = sun4i_i2s_valid_mclk_div[i];
+
+		if (div == valid_div)
+			return div;
+	}
+
+	return -EINVAL;
+}
+
+static int sun4i_i2s_oversample_rates[] = { 128, 192, 256, 384, 512, 768 };
+
+static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
+				  unsigned int rate)
+{
+	unsigned int clk_rate;
+
+	switch (rate) {
+        case 176400:
+        case 88200:
+        case 44100:
+        case 22050:
+        case 11025:
+                clk_rate = 22579200;
+                break;
+
+        case 192000:
+        case 128000:
+        case 96000:
+        case 64000:
+        case 48000:
+        case 32000:
+        case 24000:
+        case 16000:
+        case 12000:
+        case 8000:
+		clk_rate = 24576000;
+                break;
+
+        default:
+		return -EINVAL;
+        }
+
+	clk_set_rate(i2s->mod_clk, clk_rate);
+
+	/* Always favor the highest oversampling rate */
+	for (i = ARRAY_SIZE(sun4i_i2s_oversample_rates); i >= 0; i--) {
+		int bclk_div = sun4i_i2s_get_best_bclk_div(oversample_rate,
+							   params_width(params));
+		int mclk_div = sun4i_i2s_get_best_mclk_div(oversample_rate,
+							   clk_rate,
+							   rate);
+
+		if (bclk_div < 0 || mclk_div < 0)
+			continue;
+
+	}		
+}
+
 static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
