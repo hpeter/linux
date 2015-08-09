@@ -60,7 +60,13 @@
 #define SUN4I_I2S_DMA_INT_CTRL_RX_DRQ_EN	BIT(3)
 
 #define SUN4I_I2S_INT_STA_REG		0x20
+
 #define SUN4I_I2S_CLK_DIV_REG		0x24
+#define SUN4I_I2S_CLK_DIV_BCLK_MASK		GENMASK(6, 4)
+#define SUN4I_I2S_CLK_DIV_BCLK(bclk)			((bclk) << 4)
+#define SUN4I_I2S_CLK_DIV_MCLK_MASK		GENMASK(3, 0)
+#define SUN4I_I2S_CLK_DIV_MCLK(mclk)			((mclk) << 0)
+
 #define SUN4I_I2S_RX_CNT_REG		0x28
 #define SUN4I_I2S_TX_CNT_REG		0x2c
 
@@ -78,6 +84,33 @@ struct sun4i_i2s {
 	struct regmap	*regmap;
 
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
+};
+
+struct sun4i_i2s_clk_div {
+	u8	div;
+	u8	val;
+};
+
+static const struct sun4i_i2s_clk_div sun4i_i2s_bclk_div[] = {
+	{ .div = 2, .val = 0 },
+	{ .div = 4, .val = 1 },
+	{ .div = 6, .val = 2 },
+	{ .div = 8, .val = 3 },
+	{ .div = 12, .val = 4 },
+	{ .div = 16, .val = 5 },
+	{ /* Sentinel */ },
+};
+
+static const struct sun4i_i2s_clk_div sun4i_i2s_mclk_div[] = {
+	{ .div = 1, .val = 0 },
+	{ .div = 2, .val = 1 },
+	{ .div = 4, .val = 2 },
+	{ .div = 6, .val = 3 },
+	{ .div = 8, .val = 4 },
+	{ .div = 12, .val = 5 },
+	{ .div = 16, .val = 6 },
+	{ .div = 24, .val = 7 },
+	{ /* Sentinel */ },
 };
 
 static u8 sun4i_i2s_params_to_sr(struct snd_pcm_hw_params *params)
@@ -100,40 +133,36 @@ static u8 sun4i_i2s_params_to_wss(struct snd_pcm_hw_params *params)
 	return 0;
 }
 
-static int sun4i_i2s_valid_bclk_div[] = { 2, 4, 6, 8, 12, 16 };
-
-static int sun4i_i2s_get_best_bclk_div(struct sun4i_i2s *i2s,
-				       unsigned int oversample_rate,
-				       unsigned int word_size)
+static int sun4i_i2s_get_bclk_div(struct sun4i_i2s *i2s,
+				  unsigned int oversample_rate,
+				  unsigned int word_size)
 {
 	int div = oversample_rate / word_size / 2;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sun4i_i2s_valid_bclk_div); i++) {
-		int valid_div = sun4i_i2s_valid_bclk_div[i];
+	for (i = 0; sun4i_i2s_bclk_div[i].div; i++) {
+		const struct sun4i_i2s_clk_div *bdiv = sun4i_i2s_bclk_div + i;
 
-		if (div == valid_div)
-			return div;
+		if (bdiv->div == div)
+			return bdiv->val;
 	}
 
 	return -EINVAL;
 }
 
-static int sun4i_i2s_valid_mclk_div[] = { 1, 2, 4, 6, 8, 12, 16, 24 };
-
-static int sun4i_i2s_get_best_mclk_div(struct sun4i_i2s *i2s,
-				       unsigned int oversample_rate,
-				       unsigned int module_rate,
-				       unsigned int sampling_rate)
+static int sun4i_i2s_get_mclk_div(struct sun4i_i2s *i2s,
+				  unsigned int oversample_rate,
+				  unsigned int module_rate,
+				  unsigned int sampling_rate)
 {
 	int div = module_rate / sampling_rate / oversample_rate;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(sun4i_i2s_valid_mclk_div); i++) {
-		int valid_div = sun4i_i2s_valid_mclk_div[i];
+	for (i = 0; sun4i_i2s_mclk_div[i].div; i++) {
+		const struct sun4i_i2s_clk_div *mdiv = sun4i_i2s_mclk_div + i;
 
-		if (div == valid_div)
-			return div;
+		if (mdiv->div == div)
+			return mdiv->val;
 	}
 
 	return -EINVAL;
@@ -142,9 +171,12 @@ static int sun4i_i2s_get_best_mclk_div(struct sun4i_i2s *i2s,
 static int sun4i_i2s_oversample_rates[] = { 128, 192, 256, 384, 512, 768 };
 
 static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
-				  unsigned int rate)
+				  unsigned int rate,
+				  unsigned int word_size)
 {
 	unsigned int clk_rate;
+	int bclk_div, mclk_div;
+	int i;
 
 	switch (rate) {
         case 176400:
@@ -175,17 +207,29 @@ static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
 	clk_set_rate(i2s->mod_clk, clk_rate);
 
 	/* Always favor the highest oversampling rate */
-	for (i = ARRAY_SIZE(sun4i_i2s_oversample_rates); i >= 0; i--) {
-		int bclk_div = sun4i_i2s_get_best_bclk_div(oversample_rate,
-							   params_width(params));
-		int mclk_div = sun4i_i2s_get_best_mclk_div(oversample_rate,
-							   clk_rate,
-							   rate);
+	for (i = (ARRAY_SIZE(sun4i_i2s_oversample_rates) - 1); i >= 0; i--) {
+		unsigned int oversample_rate = sun4i_i2s_oversample_rates[i];
 
-		if (bclk_div < 0 || mclk_div < 0)
-			continue;
+		bclk_div = sun4i_i2s_get_bclk_div(i2s, oversample_rate,
+						  word_size);
+		mclk_div = sun4i_i2s_get_mclk_div(i2s, oversample_rate,
+						  clk_rate,
+						  rate);
 
-	}		
+		if (bclk_div > 0 || mclk_div > 0)
+			break;
+	}
+
+	if (bclk_div <= 0 || mclk_div <= 0)
+		return -EINVAL;
+
+	regmap_update_bits(i2s->regmap, SUN4I_I2S_CLK_DIV_REG,
+			   SUN4I_I2S_CLK_DIV_BCLK_MASK |
+			   SUN4I_I2S_CLK_DIV_MCLK_MASK,
+			   SUN4I_I2S_CLK_DIV_BCLK(bclk_div) |
+			   SUN4I_I2S_CLK_DIV_MCLK(mclk_div));
+
+	return 0;
 }
 
 static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -199,7 +243,7 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (params_channels(params) != 2)
 		return -EINVAL;
 
-	/* FIXME: Understand what SDO are */
+	/* Enable the first output line */
 	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
 			   SUN4I_I2S_CTRL_SDO_EN_MASK,
 			   SUN4I_I2S_CTRL_SDO_EN(0));
@@ -227,8 +271,8 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 			   SUN4I_I2S_FMT0_WSS_MASK | SUN4I_I2S_FMT0_SR_MASK,
 			   SUN4I_I2S_FMT0_WSS(wss) | SUN4I_I2S_FMT0_SR(sr));
 
-        return 0;
- 
+	return sun4i_i2s_set_clk_rate(i2s, params_rate(params),
+				      params_width(params));
 }
 
 static int sun4i_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
