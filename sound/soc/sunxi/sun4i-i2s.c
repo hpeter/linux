@@ -25,7 +25,9 @@
 #define SUN4I_I2S_CTRL_MODE_MASK		BIT(5)
 #define SUN4I_I2S_CTRL_MODE_SLAVE			(1 << 5)
 #define SUN4I_I2S_CTRL_MODE_MASTER			(0 << 5)
-#define SUN4I_I2S_CTRL_GLOBAL_ENABLE		BIT(0)
+#define SUN4I_I2S_CTRL_TX_EN			BIT(2)
+#define SUN4I_I2S_CTRL_RX_EN			BIT(1)
+#define SUN4I_I2S_CTRL_GL_EN			BIT(0)
 
 #define SUN4I_I2S_FMT0_REG		0x04
 #define SUN4I_I2S_FMT0_LRCLK_POLARITY_MASK	BIT(7)
@@ -46,9 +48,17 @@
 #define SUN4I_I2S_FMT1_REG		0x08
 #define SUN4I_I2S_FIFO_TX_REG		0x0c
 #define SUN4I_I2S_FIFO_RX_REG		0x10
+
 #define SUN4I_I2S_FIFO_CTRL_REG		0x14
+#define SUN4I_I2S_FIFO_CTRL_FLUSH_TX		BIT(25)
+#define SUN4I_I2S_FIFO_CTRL_FLUSH_RX		BIT(24)
+
 #define SUN4I_I2S_FIFO_STA_REG		0x18
-#define SUN4I_I2S_INT_CTRL_REG		0x1c
+
+#define SUN4I_I2S_DMA_INT_CTRL_REG	0x1c
+#define SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN	BIT(7)
+#define SUN4I_I2S_DMA_INT_CTRL_RX_DRQ_EN	BIT(3)
+
 #define SUN4I_I2S_INT_STA_REG		0x20
 #define SUN4I_I2S_CLK_DIV_REG		0x24
 #define SUN4I_I2S_RX_CNT_REG		0x28
@@ -209,9 +219,76 @@ static int sun4i_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static void sun4i_i2s_start_playback(struct sun4i_i2s *i2s)
+{
+	/* Flush TX FIFO */
+        regmap_update_bits(i2s->regmap, SUN4I_I2S_FIFO_CTRL_REG,
+			   SUN4I_I2S_FIFO_CTRL_FLUSH_TX,
+			   SUN4I_I2S_FIFO_CTRL_FLUSH_TX);
+
+        /* Clear TX counter */
+	regmap_write(i2s->regmap, SUN4I_I2S_TX_CNT_REG, 0);
+
+        /* Enable TX Block */
+        regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
+			   SUN4I_I2S_CTRL_TX_EN,
+			   SUN4I_I2S_CTRL_TX_EN);
+
+        /* Enable TX DRQ */
+        regmap_update_bits(i2s->regmap, SUN4I_I2S_DMA_INT_CTRL_REG,
+			   SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN,
+			   SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN);
+}
+
+
+static void sun4i_i2s_stop_playback(struct sun4i_i2s *i2s)
+{
+        /* Disable TX Block */
+        regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
+			   SUN4I_I2S_CTRL_TX_EN,
+			   0);
+
+        /* Disable TX DRQ */
+        regmap_update_bits(i2s->regmap, SUN4I_I2S_DMA_INT_CTRL_REG,
+			   SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN,
+			   0);
+}
+
+static int sun4i_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			     struct snd_soc_dai *dai)
+{
+	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_RESUME:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			sun4i_i2s_start_playback(i2s);
+		else
+			return -EINVAL;
+		break;
+
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			sun4i_i2s_stop_playback(i2s);
+		else
+			return -EINVAL;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops sun4i_i2s_dai_ops = {
 	.hw_params	= sun4i_i2s_hw_params,
 	.set_fmt	= sun4i_i2s_set_fmt,
+	.trigger	= sun4i_i2s_trigger,
 };
 
 static int sun4i_i2s_dai_probe(struct snd_soc_dai *dai)
@@ -220,7 +297,7 @@ static int sun4i_i2s_dai_probe(struct snd_soc_dai *dai)
 
 	/* Enable the whole hardware block */
 	regmap_write(i2s->regmap, SUN4I_I2S_CTRL_REG,
-		     SUN4I_I2S_CTRL_GLOBAL_ENABLE);
+		     SUN4I_I2S_CTRL_GL_EN);
 
 	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data, NULL);
 
