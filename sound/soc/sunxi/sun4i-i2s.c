@@ -19,79 +19,79 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 
-#define SUN4I_I2S_CTRL_REG		0x00
-#define SUN4I_I2S_CTRL_SDO_EN_MASK		GENMASK(11, 8)
-#define SUN4I_I2S_CTRL_SDO_EN(sdo)			BIT(8 + (sdo))
-#define SUN4I_I2S_CTRL_MODE_MASK		BIT(5)
-#define SUN4I_I2S_CTRL_MODE_SLAVE			(1 << 5)
-#define SUN4I_I2S_CTRL_MODE_MASTER			(0 << 5)
-#define SUN4I_I2S_CTRL_TX_EN			BIT(2)
-#define SUN4I_I2S_CTRL_RX_EN			BIT(1)
-#define SUN4I_I2S_CTRL_GL_EN			BIT(0)
+#define SUN4I_DAI_CTRL_REG		0x00
+#define SUN4I_DAI_CTRL_SDO_EN_MASK		GENMASK(11, 8)
+#define SUN4I_DAI_CTRL_SDO_EN(sdo)			BIT(8 + (sdo))
+#define SUN4I_DAI_CTRL_MODE_MASK		BIT(5)
+#define SUN4I_DAI_CTRL_MODE_SLAVE			(1 << 5)
+#define SUN4I_DAI_CTRL_MODE_MASTER			(0 << 5)
+#define SUN4I_DAI_CTRL_TX_EN			BIT(2)
+#define SUN4I_DAI_CTRL_RX_EN			BIT(1)
+#define SUN4I_DAI_CTRL_GL_EN			BIT(0)
 
-#define SUN4I_I2S_FMT0_REG		0x04
-#define SUN4I_I2S_FMT0_LRCLK_POLARITY_MASK	BIT(7)
-#define SUN4I_I2S_FMT0_LRCLK_POLARITY_INVERTED		(1 << 7)
-#define SUN4I_I2S_FMT0_LRCLK_POLARITY_NORMAL		(0 << 7)
-#define SUN4I_I2S_FMT0_BCLK_POLARITY_MASK	BIT(6)
-#define SUN4I_I2S_FMT0_BCLK_POLARITY_INVERTED		(1 << 6)
-#define SUN4I_I2S_FMT0_BCLK_POLARITY_NORMAL		(0 << 6)
-#define SUN4I_I2S_FMT0_SR_MASK			GENMASK(5, 4)
-#define SUN4I_I2S_FMT0_SR(sr)				((sr) << 4)
-#define SUN4I_I2S_FMT0_WSS_MASK			GENMASK(3, 2)
-#define SUN4I_I2S_FMT0_WSS(wss)				((wss) << 2)
-#define SUN4I_I2S_FMT0_FMT_MASK			GENMASK(1, 0)
-#define SUN4I_I2S_FMT0_FMT_RIGHT_J			(2 << 0)
-#define SUN4I_I2S_FMT0_FMT_LEFT_J			(1 << 0)
-#define SUN4I_I2S_FMT0_FMT_I2S				(0 << 0)
+#define SUN4I_DAI_FMT0_REG		0x04
+#define SUN4I_DAI_FMT0_LRCLK_POLARITY_MASK	BIT(7)
+#define SUN4I_DAI_FMT0_LRCLK_POLARITY_INVERTED		(1 << 7)
+#define SUN4I_DAI_FMT0_LRCLK_POLARITY_NORMAL		(0 << 7)
+#define SUN4I_DAI_FMT0_BCLK_POLARITY_MASK	BIT(6)
+#define SUN4I_DAI_FMT0_BCLK_POLARITY_INVERTED		(1 << 6)
+#define SUN4I_DAI_FMT0_BCLK_POLARITY_NORMAL		(0 << 6)
+#define SUN4I_DAI_FMT0_SR_MASK			GENMASK(5, 4)
+#define SUN4I_DAI_FMT0_SR(sr)				((sr) << 4)
+#define SUN4I_DAI_FMT0_WSS_MASK			GENMASK(3, 2)
+#define SUN4I_DAI_FMT0_WSS(wss)				((wss) << 2)
+#define SUN4I_DAI_FMT0_FMT_MASK			GENMASK(1, 0)
+#define SUN4I_DAI_FMT0_FMT_RIGHT_J			(2 << 0)
+#define SUN4I_DAI_FMT0_FMT_LEFT_J			(1 << 0)
+#define SUN4I_DAI_FMT0_FMT_I2S				(0 << 0)
 
-#define SUN4I_I2S_FMT1_REG		0x08
-#define SUN4I_I2S_FIFO_TX_REG		0x0c
-#define SUN4I_I2S_FIFO_RX_REG		0x10
+#define SUN4I_DAI_FMT1_REG		0x08
+#define SUN4I_DAI_FIFO_TX_REG		0x0c
+#define SUN4I_DAI_FIFO_RX_REG		0x10
 
-#define SUN4I_I2S_FIFO_CTRL_REG		0x14
-#define SUN4I_I2S_FIFO_CTRL_FLUSH_TX		BIT(25)
-#define SUN4I_I2S_FIFO_CTRL_FLUSH_RX		BIT(24)
+#define SUN4I_DAI_FIFO_CTRL_REG		0x14
+#define SUN4I_DAI_FIFO_CTRL_FLUSH_TX		BIT(25)
+#define SUN4I_DAI_FIFO_CTRL_FLUSH_RX		BIT(24)
 
-#define SUN4I_I2S_FIFO_STA_REG		0x18
+#define SUN4I_DAI_FIFO_STA_REG		0x18
 
-#define SUN4I_I2S_DMA_INT_CTRL_REG	0x1c
-#define SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN	BIT(7)
-#define SUN4I_I2S_DMA_INT_CTRL_RX_DRQ_EN	BIT(3)
+#define SUN4I_DAI_DMA_INT_CTRL_REG	0x1c
+#define SUN4I_DAI_DMA_INT_CTRL_TX_DRQ_EN	BIT(7)
+#define SUN4I_DAI_DMA_INT_CTRL_RX_DRQ_EN	BIT(3)
 
-#define SUN4I_I2S_INT_STA_REG		0x20
+#define SUN4I_DAI_INT_STA_REG		0x20
 
-#define SUN4I_I2S_CLK_DIV_REG		0x24
-#define SUN4I_I2S_CLK_DIV_BCLK_MASK		GENMASK(6, 4)
-#define SUN4I_I2S_CLK_DIV_BCLK(bclk)			((bclk) << 4)
-#define SUN4I_I2S_CLK_DIV_MCLK_MASK		GENMASK(3, 0)
-#define SUN4I_I2S_CLK_DIV_MCLK(mclk)			((mclk) << 0)
+#define SUN4I_DAI_CLK_DIV_REG		0x24
+#define SUN4I_DAI_CLK_DIV_BCLK_MASK		GENMASK(6, 4)
+#define SUN4I_DAI_CLK_DIV_BCLK(bclk)			((bclk) << 4)
+#define SUN4I_DAI_CLK_DIV_MCLK_MASK		GENMASK(3, 0)
+#define SUN4I_DAI_CLK_DIV_MCLK(mclk)			((mclk) << 0)
 
-#define SUN4I_I2S_RX_CNT_REG		0x28
-#define SUN4I_I2S_TX_CNT_REG		0x2c
+#define SUN4I_DAI_RX_CNT_REG		0x28
+#define SUN4I_DAI_TX_CNT_REG		0x2c
 
-#define SUN4I_I2S_TX_CHAN_SEL_REG	0x30
-#define SUN4I_I2S_TX_CHAN_SEL(num_chan)		(((num_chan) - 1) << 0)
+#define SUN4I_DAI_TX_CHAN_SEL_REG	0x30
+#define SUN4I_DAI_TX_CHAN_SEL(num_chan)		(((num_chan) - 1) << 0)
 
-#define SUN4I_I2S_TX_CHAN_MAP_REG	0x34
-#define SUN4I_I2S_TX_CHAN_MAP(chan, sample)	((sample) << (chan << 2))
+#define SUN4I_DAI_TX_CHAN_MAP_REG	0x34
+#define SUN4I_DAI_TX_CHAN_MAP(chan, sample)	((sample) << (chan << 2))
 
-#define SUN4I_I2S_RX_CHAN_SEL_REG	0x38
-#define SUN4I_I2S_RX_CHAN_MAP_REG	0x3c
+#define SUN4I_DAI_RX_CHAN_SEL_REG	0x38
+#define SUN4I_DAI_RX_CHAN_MAP_REG	0x3c
 
-struct sun4i_i2s {
+struct sun4i_dai {
 	struct clk	*mod_clk;
 	struct regmap	*regmap;
 
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
 };
 
-struct sun4i_i2s_clk_div {
+struct sun4i_dai_clk_div {
 	u8	div;
 	u8	val;
 };
 
-static const struct sun4i_i2s_clk_div sun4i_i2s_bclk_div[] = {
+static const struct sun4i_dai_clk_div sun4i_dai_bclk_div[] = {
 	{ .div = 2, .val = 0 },
 	{ .div = 4, .val = 1 },
 	{ .div = 6, .val = 2 },
@@ -101,7 +101,7 @@ static const struct sun4i_i2s_clk_div sun4i_i2s_bclk_div[] = {
 	{ /* Sentinel */ },
 };
 
-static const struct sun4i_i2s_clk_div sun4i_i2s_mclk_div[] = {
+static const struct sun4i_dai_clk_div sun4i_dai_mclk_div[] = {
 	{ .div = 1, .val = 0 },
 	{ .div = 2, .val = 1 },
 	{ .div = 4, .val = 2 },
@@ -113,7 +113,7 @@ static const struct sun4i_i2s_clk_div sun4i_i2s_mclk_div[] = {
 	{ /* Sentinel */ },
 };
 
-static u8 sun4i_i2s_params_to_sr(struct snd_pcm_hw_params *params)
+static u8 sun4i_dai_params_to_sr(struct snd_pcm_hw_params *params)
 {
 	switch (params_width(params)) {
 	case 24:
@@ -123,7 +123,7 @@ static u8 sun4i_i2s_params_to_sr(struct snd_pcm_hw_params *params)
 	return 0;
 }
 
-static u8 sun4i_i2s_params_to_wss(struct snd_pcm_hw_params *params)
+static u8 sun4i_dai_params_to_wss(struct snd_pcm_hw_params *params)
 {
 	switch (params_width(params)) {
 	case 24:
@@ -133,15 +133,15 @@ static u8 sun4i_i2s_params_to_wss(struct snd_pcm_hw_params *params)
 	return 0;
 }
 
-static int sun4i_i2s_get_bclk_div(struct sun4i_i2s *i2s,
+static int sun4i_dai_get_bclk_div(struct sun4i_dai *sdai,
 				  unsigned int oversample_rate,
 				  unsigned int word_size)
 {
 	int div = oversample_rate / word_size / 2;
 	int i;
 
-	for (i = 0; sun4i_i2s_bclk_div[i].div; i++) {
-		const struct sun4i_i2s_clk_div *bdiv = sun4i_i2s_bclk_div + i;
+	for (i = 0; sun4i_dai_bclk_div[i].div; i++) {
+		const struct sun4i_dai_clk_div *bdiv = sun4i_dai_bclk_div + i;
 
 		if (bdiv->div == div)
 			return bdiv->val;
@@ -150,7 +150,7 @@ static int sun4i_i2s_get_bclk_div(struct sun4i_i2s *i2s,
 	return -EINVAL;
 }
 
-static int sun4i_i2s_get_mclk_div(struct sun4i_i2s *i2s,
+static int sun4i_dai_get_mclk_div(struct sun4i_dai *sdai,
 				  unsigned int oversample_rate,
 				  unsigned int module_rate,
 				  unsigned int sampling_rate)
@@ -158,8 +158,8 @@ static int sun4i_i2s_get_mclk_div(struct sun4i_i2s *i2s,
 	int div = module_rate / sampling_rate / oversample_rate;
 	int i;
 
-	for (i = 0; sun4i_i2s_mclk_div[i].div; i++) {
-		const struct sun4i_i2s_clk_div *mdiv = sun4i_i2s_mclk_div + i;
+	for (i = 0; sun4i_dai_mclk_div[i].div; i++) {
+		const struct sun4i_dai_clk_div *mdiv = sun4i_dai_mclk_div + i;
 
 		if (mdiv->div == div)
 			return mdiv->val;
@@ -168,9 +168,9 @@ static int sun4i_i2s_get_mclk_div(struct sun4i_i2s *i2s,
 	return -EINVAL;
 }
 
-static int sun4i_i2s_oversample_rates[] = { 128, 192, 256, 384, 512, 768 };
+static int sun4i_dai_oversample_rates[] = { 128, 192, 256, 384, 512, 768 };
 
-static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
+static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 				  unsigned int rate,
 				  unsigned int word_size)
 {
@@ -204,15 +204,15 @@ static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
 		return -EINVAL;
         }
 
-	clk_set_rate(i2s->mod_clk, clk_rate);
+	clk_set_rate(sdai->mod_clk, clk_rate);
 
 	/* Always favor the highest oversampling rate */
-	for (i = (ARRAY_SIZE(sun4i_i2s_oversample_rates) - 1); i >= 0; i--) {
-		unsigned int oversample_rate = sun4i_i2s_oversample_rates[i];
+	for (i = (ARRAY_SIZE(sun4i_dai_oversample_rates) - 1); i >= 0; i--) {
+		unsigned int oversample_rate = sun4i_dai_oversample_rates[i];
 
-		bclk_div = sun4i_i2s_get_bclk_div(i2s, oversample_rate,
+		bclk_div = sun4i_dai_get_bclk_div(sdai, oversample_rate,
 						  word_size);
-		mclk_div = sun4i_i2s_get_mclk_div(i2s, oversample_rate,
+		mclk_div = sun4i_dai_get_mclk_div(sdai, oversample_rate,
 						  clk_rate,
 						  rate);
 
@@ -223,20 +223,20 @@ static int sun4i_i2s_set_clk_rate(struct sun4i_i2s *i2s,
 	if (bclk_div <= 0 || mclk_div <= 0)
 		return -EINVAL;
 
-	regmap_update_bits(i2s->regmap, SUN4I_I2S_CLK_DIV_REG,
-			   SUN4I_I2S_CLK_DIV_BCLK_MASK |
-			   SUN4I_I2S_CLK_DIV_MCLK_MASK,
-			   SUN4I_I2S_CLK_DIV_BCLK(bclk_div) |
-			   SUN4I_I2S_CLK_DIV_MCLK(mclk_div));
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_CLK_DIV_REG,
+			   SUN4I_DAI_CLK_DIV_BCLK_MASK |
+			   SUN4I_DAI_CLK_DIV_MCLK_MASK,
+			   SUN4I_DAI_CLK_DIV_BCLK(bclk_div) |
+			   SUN4I_DAI_CLK_DIV_MCLK(mclk_div));
 
 	return 0;
 }
 
-static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
+static int sun4i_dai_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params,
 			       struct snd_soc_dai *dai)
 {
-	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
 	u32 width;
 	u8 sr, wss;
 
@@ -244,17 +244,17 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	/* Enable the first output line */
-	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
-			   SUN4I_I2S_CTRL_SDO_EN_MASK,
-			   SUN4I_I2S_CTRL_SDO_EN(0));
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_CTRL_REG,
+			   SUN4I_DAI_CTRL_SDO_EN_MASK,
+			   SUN4I_DAI_CTRL_SDO_EN(0));
 
 	/* Enable the first two channels */
-	regmap_write(i2s->regmap, SUN4I_I2S_TX_CHAN_SEL_REG,
-		     SUN4I_I2S_TX_CHAN_SEL(2));
+	regmap_write(sdai->regmap, SUN4I_DAI_TX_CHAN_SEL_REG,
+		     SUN4I_DAI_TX_CHAN_SEL(2));
 
 	/* Map them to the two first samples coming in */
-	regmap_write(i2s->regmap, SUN4I_I2S_TX_CHAN_MAP_REG,
-		     SUN4I_I2S_TX_CHAN_MAP(0, 0) | SUN4I_I2S_TX_CHAN_MAP(1, 1));
+	regmap_write(sdai->regmap, SUN4I_DAI_TX_CHAN_MAP_REG,
+		     SUN4I_DAI_TX_CHAN_MAP(0, 0) | SUN4I_DAI_TX_CHAN_MAP(1, 1));
 
 	switch (params_physical_width(params)) {
 	case 32:
@@ -263,140 +263,140 @@ static int sun4i_i2s_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
-	i2s->playback_dma_data.addr_width = width;
+	sdai->playback_dma_data.addr_width = width;
 
-	sr = sun4i_i2s_params_to_sr(params);
-	wss = sun4i_i2s_params_to_wss(params);
-	regmap_update_bits(i2s->regmap, SUN4I_I2S_FMT0_REG,
-			   SUN4I_I2S_FMT0_WSS_MASK | SUN4I_I2S_FMT0_SR_MASK,
-			   SUN4I_I2S_FMT0_WSS(wss) | SUN4I_I2S_FMT0_SR(sr));
+	sr = sun4i_dai_params_to_sr(params);
+	wss = sun4i_dai_params_to_wss(params);
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_FMT0_REG,
+			   SUN4I_DAI_FMT0_WSS_MASK | SUN4I_DAI_FMT0_SR_MASK,
+			   SUN4I_DAI_FMT0_WSS(wss) | SUN4I_DAI_FMT0_SR(sr));
 
-	return sun4i_i2s_set_clk_rate(i2s, params_rate(params),
+	return sun4i_dai_set_clk_rate(sdai, params_rate(params),
 				      params_width(params));
 }
 
-static int sun4i_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+static int sun4i_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-        struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+        struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
 	u32 val;
 
 	/* DAI Mode */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		val = SUN4I_I2S_FMT0_FMT_I2S;
+		val = SUN4I_DAI_FMT0_FMT_I2S;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		val = SUN4I_I2S_FMT0_FMT_LEFT_J;
+		val = SUN4I_DAI_FMT0_FMT_LEFT_J;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		val = SUN4I_I2S_FMT0_FMT_RIGHT_J;
+		val = SUN4I_DAI_FMT0_FMT_RIGHT_J;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	regmap_update_bits(i2s->regmap, SUN4I_I2S_FMT0_REG,
-			   SUN4I_I2S_FMT0_FMT_MASK,
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_FMT0_REG,
+			   SUN4I_DAI_FMT0_FMT_MASK,
 			   val);
 
 	/* DAI clock polarity */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_IB_IF:
 		/* Invert both clocks */
-		val = SUN4I_I2S_FMT0_BCLK_POLARITY_INVERTED |
-			SUN4I_I2S_FMT0_LRCLK_POLARITY_INVERTED;
+		val = SUN4I_DAI_FMT0_BCLK_POLARITY_INVERTED |
+			SUN4I_DAI_FMT0_LRCLK_POLARITY_INVERTED;
 		break;
 	case SND_SOC_DAIFMT_IB_NF:
 		/* Invert bit clock */
-		val = SUN4I_I2S_FMT0_BCLK_POLARITY_INVERTED | 
-			SUN4I_I2S_FMT0_LRCLK_POLARITY_NORMAL;
+		val = SUN4I_DAI_FMT0_BCLK_POLARITY_INVERTED | 
+			SUN4I_DAI_FMT0_LRCLK_POLARITY_NORMAL;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
 		/* Invert frame clock */
-		val = SUN4I_I2S_FMT0_LRCLK_POLARITY_INVERTED |
-			SUN4I_I2S_FMT0_BCLK_POLARITY_NORMAL;
+		val = SUN4I_DAI_FMT0_LRCLK_POLARITY_INVERTED |
+			SUN4I_DAI_FMT0_BCLK_POLARITY_NORMAL;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
 		/* Nothing to do for both normal cases */
-		val = SUN4I_I2S_FMT0_BCLK_POLARITY_NORMAL |
-			SUN4I_I2S_FMT0_LRCLK_POLARITY_NORMAL;
+		val = SUN4I_DAI_FMT0_BCLK_POLARITY_NORMAL |
+			SUN4I_DAI_FMT0_LRCLK_POLARITY_NORMAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	regmap_update_bits(i2s->regmap, SUN4I_I2S_FMT0_REG,
-			   SUN4I_I2S_FMT0_BCLK_POLARITY_MASK |
-			   SUN4I_I2S_FMT0_LRCLK_POLARITY_MASK,
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_FMT0_REG,
+			   SUN4I_DAI_FMT0_BCLK_POLARITY_MASK |
+			   SUN4I_DAI_FMT0_LRCLK_POLARITY_MASK,
 			   val);
 
 	/* DAI clock master masks */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		/* BCLK and LRCLK master */
-		val = SUN4I_I2S_CTRL_MODE_MASTER;
+		val = SUN4I_DAI_CTRL_MODE_MASTER;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		/* BCLK and LRCLK slave */
-		val = SUN4I_I2S_CTRL_MODE_SLAVE;
+		val = SUN4I_DAI_CTRL_MODE_SLAVE;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
-			   SUN4I_I2S_CTRL_MODE_MASK,
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_CTRL_REG,
+			   SUN4I_DAI_CTRL_MODE_MASK,
 			   val);
 
 	return 0;
 }
 
-static void sun4i_i2s_start_playback(struct sun4i_i2s *i2s)
+static void sun4i_dai_start_playback(struct sun4i_dai *sdai)
 {
 	/* Flush TX FIFO */
-        regmap_update_bits(i2s->regmap, SUN4I_I2S_FIFO_CTRL_REG,
-			   SUN4I_I2S_FIFO_CTRL_FLUSH_TX,
-			   SUN4I_I2S_FIFO_CTRL_FLUSH_TX);
+        regmap_update_bits(sdai->regmap, SUN4I_DAI_FIFO_CTRL_REG,
+			   SUN4I_DAI_FIFO_CTRL_FLUSH_TX,
+			   SUN4I_DAI_FIFO_CTRL_FLUSH_TX);
 
         /* Clear TX counter */
-	regmap_write(i2s->regmap, SUN4I_I2S_TX_CNT_REG, 0);
+	regmap_write(sdai->regmap, SUN4I_DAI_TX_CNT_REG, 0);
 
         /* Enable TX Block */
-        regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
-			   SUN4I_I2S_CTRL_TX_EN,
-			   SUN4I_I2S_CTRL_TX_EN);
+        regmap_update_bits(sdai->regmap, SUN4I_DAI_CTRL_REG,
+			   SUN4I_DAI_CTRL_TX_EN,
+			   SUN4I_DAI_CTRL_TX_EN);
 
         /* Enable TX DRQ */
-        regmap_update_bits(i2s->regmap, SUN4I_I2S_DMA_INT_CTRL_REG,
-			   SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN,
-			   SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN);
+        regmap_update_bits(sdai->regmap, SUN4I_DAI_DMA_INT_CTRL_REG,
+			   SUN4I_DAI_DMA_INT_CTRL_TX_DRQ_EN,
+			   SUN4I_DAI_DMA_INT_CTRL_TX_DRQ_EN);
 }
 
 
-static void sun4i_i2s_stop_playback(struct sun4i_i2s *i2s)
+static void sun4i_dai_stop_playback(struct sun4i_dai *sdai)
 {
         /* Disable TX Block */
-        regmap_update_bits(i2s->regmap, SUN4I_I2S_CTRL_REG,
-			   SUN4I_I2S_CTRL_TX_EN,
+        regmap_update_bits(sdai->regmap, SUN4I_DAI_CTRL_REG,
+			   SUN4I_DAI_CTRL_TX_EN,
 			   0);
 
         /* Disable TX DRQ */
-        regmap_update_bits(i2s->regmap, SUN4I_I2S_DMA_INT_CTRL_REG,
-			   SUN4I_I2S_DMA_INT_CTRL_TX_DRQ_EN,
+        regmap_update_bits(sdai->regmap, SUN4I_DAI_DMA_INT_CTRL_REG,
+			   SUN4I_DAI_DMA_INT_CTRL_TX_DRQ_EN,
 			   0);
 }
 
-static int sun4i_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+static int sun4i_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			     struct snd_soc_dai *dai)
 {
-	struct sun4i_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			sun4i_i2s_start_playback(i2s);
+			sun4i_dai_start_playback(sdai);
 		else
 			return -EINVAL;
 		break;
@@ -405,7 +405,7 @@ static int sun4i_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			sun4i_i2s_stop_playback(i2s);
+			sun4i_dai_stop_playback(sdai);
 		else
 			return -EINVAL;
 		break;
@@ -417,29 +417,29 @@ static int sun4i_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops sun4i_i2s_dai_ops = {
-	.hw_params	= sun4i_i2s_hw_params,
-	.set_fmt	= sun4i_i2s_set_fmt,
-	.trigger	= sun4i_i2s_trigger,
+static const struct snd_soc_dai_ops sun4i_dai_dai_ops = {
+	.hw_params	= sun4i_dai_hw_params,
+	.set_fmt	= sun4i_dai_set_fmt,
+	.trigger	= sun4i_dai_trigger,
 };
 
-static int sun4i_i2s_dai_probe(struct snd_soc_dai *dai)
+static int sun4i_dai_dai_probe(struct snd_soc_dai *dai)
 {
-	struct sun4i_i2s *i2s = dev_get_drvdata(dai->dev);
+	struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
 
 	/* Enable the whole hardware block */
-	regmap_write(i2s->regmap, SUN4I_I2S_CTRL_REG,
-		     SUN4I_I2S_CTRL_GL_EN);
+	regmap_write(sdai->regmap, SUN4I_DAI_CTRL_REG,
+		     SUN4I_DAI_CTRL_GL_EN);
 
-	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data, NULL);
+	snd_soc_dai_init_dma_data(dai, &sdai->playback_dma_data, NULL);
 
-	snd_soc_dai_set_drvdata(dai, i2s);
+	snd_soc_dai_set_drvdata(dai, sdai);
 
 	return 0;
 }
 
-static struct snd_soc_dai_driver sun4i_i2s_dai = {
-	.probe = sun4i_i2s_dai_probe,
+static struct snd_soc_dai_driver sun4i_dai_dai = {
+	.probe = sun4i_dai_dai_probe,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -447,31 +447,32 @@ static struct snd_soc_dai_driver sun4i_i2s_dai = {
 		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S24_LE,
 	},
-	.ops = &sun4i_i2s_dai_ops,
+	.ops = &sun4i_dai_dai_ops,
 	.symmetric_rates = 1,
 };
 
-static const struct snd_soc_component_driver sun4i_i2s_component = {
-	.name	= "sun4i-i2s",
+static const struct snd_soc_component_driver sun4i_dai_component = {
+	.name	= "sun4i-dai",
 };
 
-static const struct regmap_config sun4i_i2s_regmap_config = {
+static const struct regmap_config sun4i_dai_regmap_config = {
 	.reg_bits	= 32,
 	.reg_stride	= 4,
 	.val_bits	= 32,
-	.max_register	= SUN4I_I2S_TX_CHAN_MAP_REG,
+	.max_register	= SUN4I_DAI_TX_CHAN_MAP_REG,
 };
 
-static int sun4i_i2s_probe(struct platform_device *pdev)
+static int sun4i_dai_probe(struct platform_device *pdev)
 {
-	struct sun4i_i2s *i2s;
+	struct sun4i_dai *sdai;
 	struct resource *res;
 	void __iomem *regs;
 	int irq, ret;
 
-	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
-	if (!i2s)
+	sdai = devm_kzalloc(&pdev->dev, sizeof(*sdai), GFP_KERNEL);
+	if (!sdai)
 		return -ENOMEM;
+	dev_set_drvdata(&pdev->dev, sdai);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
@@ -486,25 +487,25 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	i2s->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", regs,
-						&sun4i_i2s_regmap_config);
-	if (IS_ERR(i2s->regmap)) {
+	sdai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", regs,
+						&sun4i_dai_regmap_config);
+	if (IS_ERR(sdai->regmap)) {
 		dev_err(&pdev->dev, "Regmap initialisation failed\n");
-		return PTR_ERR(i2s->regmap);
+		return PTR_ERR(sdai->regmap);
 	};
 
-	i2s->mod_clk = devm_clk_get(&pdev->dev, "mod");
-	if (IS_ERR(i2s->mod_clk)) {
+	sdai->mod_clk = devm_clk_get(&pdev->dev, "mod");
+	if (IS_ERR(sdai->mod_clk)) {
 		dev_err(&pdev->dev, "Can't get our mod clock\n");
-		return PTR_ERR(i2s->mod_clk);
+		return PTR_ERR(sdai->mod_clk);
 	}
 	
-	i2s->playback_dma_data.addr = res->start + SUN4I_I2S_FIFO_TX_REG;
-	i2s->playback_dma_data.maxburst = 4;
+	sdai->playback_dma_data.addr = res->start + SUN4I_DAI_FIFO_TX_REG;
+	sdai->playback_dma_data.maxburst = 4;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-					      &sun4i_i2s_component,
-					      &sun4i_i2s_dai, 1);
+					      &sun4i_dai_component,
+					      &sun4i_dai_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
 		return ret;
@@ -519,26 +520,28 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sun4i_i2s_remove(struct platform_device *pdev)
+static int sun4i_dai_remove(struct platform_device *pdev)
 {
+	snd_dmaengine_pcm_unregister(&pdev->dev);
+
 	return 0;
 }
 
-static const struct of_device_id sun4i_i2s_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-i2s", },
+static const struct of_device_id sun4i_dai_match[] = {
+	{ .compatible = "allwinner,sun4i-a10-dai", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, sun4i_i2s_match);
+MODULE_DEVICE_TABLE(of, sun4i_dai_match);
 
-static struct platform_driver sun4i_i2s_driver = {
-	.probe	= sun4i_i2s_probe,
-	.remove	= sun4i_i2s_remove,
+static struct platform_driver sun4i_dai_driver = {
+	.probe	= sun4i_dai_probe,
+	.remove	= sun4i_dai_remove,
 	.driver	= {
-		.name		= "sun4i-i2s",
-		.of_match_table	= sun4i_i2s_match,
+		.name		= "sun4i-dai",
+		.of_match_table	= sun4i_dai_match,
 	},
 };
-module_platform_driver(sun4i_i2s_driver);
+module_platform_driver(sun4i_dai_driver);
 
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
 MODULE_DESCRIPTION("Allwinner A10 DAI driver");
