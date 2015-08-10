@@ -1,4 +1,7 @@
 /*
+ * Copyright (C) 2015 Andrea Venturi
+ * Andrea Venturi <be17068@iperbole.bo.it>
+ *
  * Copyright (C) 2015 Maxime Ripard
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  *
@@ -543,6 +546,7 @@ static struct platform_driver sun4i_dai_driver = {
 };
 module_platform_driver(sun4i_dai_driver);
 
+MODULE_AUTHOR("Andrea Venturi <be17068@iperbole.bo.it>");
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
 MODULE_DESCRIPTION("Allwinner A10 DAI driver");
 MODULE_LICENSE("GPL");
