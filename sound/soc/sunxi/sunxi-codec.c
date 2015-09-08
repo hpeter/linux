@@ -78,8 +78,8 @@
 #define SUNXI_ADC_FIFOS			(0x20)
 #define SUNXI_ADC_RXDATA		(0x24)
 #define SUNXI_ADC_ACTL			(0x28)
-#define SUNXI_ADC_ACTL_ADCREN			(31)
-#define SUNXI_ADC_ACTL_ADCLEN			(30)
+#define SUNXI_ADC_ACTL_ADC_R_EN			(31)
+#define SUNXI_ADC_ACTL_ADC_L_EN			(30)
 #define SUNXI_ADC_ACTL_PREG1EN			(29)
 #define SUNXI_ADC_ACTL_PREG2EN			(28)
 #define SUNXI_ADC_ACTL_VMICEN			(27)
@@ -96,51 +96,62 @@
 #define SUNXI_AC_MIC_PHONE_CAL		(0x3c)
 
 struct sunxi_priv {
-	struct regmap *regmap;
-	struct clk *clk_apb, *clk_module;
 	struct device	*dev;
+	struct regmap	*regmap;
+	struct clk	*clk_apb;
+	struct clk	*clk_module;
 
-	struct snd_dmaengine_dai_dma_data playback_dma_data;
-	struct snd_dmaengine_dai_dma_data capture_dma_data;
+	struct snd_dmaengine_dai_dma_data	playback_dma_data;
+	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 };
 
 static void sunxi_codec_play_start(struct sunxi_priv *priv)
 {
 	/* TODO: see if we need to drive PA GPIO high */
 
-	/* flush TX FIFO */
-	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_FIFO_FLUSH, 0x1 << SUNXI_DAC_FIFOC_FIFO_FLUSH);
+	/* Flush TX FIFO */
+	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+			   BIT(SUNXI_DAC_FIFOC_FIFO_FLUSH),
+			   BIT(SUNXI_DAC_FIFOC_FIFO_FLUSH));
 
-	/* enable DAC DRQ */
-	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_DAC_DRQ_EN, 0x1 << SUNXI_DAC_FIFOC_DAC_DRQ_EN);
+	/* Enable DAC DRQ */
+	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+			   BIT(SUNXI_DAC_FIFOC_DAC_DRQ_EN),
+			   BIT(SUNXI_DAC_FIFOC_DAC_DRQ_EN));
 }
 
 static void sunxi_codec_play_stop(struct sunxi_priv *priv)
 {
 	/* TODO: see if we need to drive PA GPIO low */
 
-	/* disable DAC DRQ */
-	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_DAC_DRQ_EN, 0x0 << SUNXI_DAC_FIFOC_DAC_DRQ_EN);
+	/* Disable DAC DRQ */
+	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+			   BIT(SUNXI_DAC_FIFOC_DAC_DRQ_EN), 0);
 }
 
 static void sunxi_codec_capture_start(struct sunxi_priv *priv)
 {
 	/* TODO: see if we need to drive PA GPIO high */
 
-	/* enable ADC DRQ */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_ADC_DRQ_EN, 0x1 << SUNXI_ADC_FIFOC_ADC_DRQ_EN);
+	/* Enable ADC DRQ */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+			   BIT(SUNXI_ADC_FIFOC_ADC_DRQ_EN),
+			   BIT(SUNXI_ADC_FIFOC_ADC_DRQ_EN));
 }
 
 static void sunxi_codec_capture_stop(struct sunxi_priv *priv)
 {
-	/* disable ADC DRQ */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_ADC_DRQ_EN, 0x0 << SUNXI_ADC_FIFOC_ADC_DRQ_EN);
+	/* Disable ADC DRQ */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+			   BIT(SUNXI_ADC_FIFOC_ADC_DRQ_EN), 0);
 
-	/* enable mic1 PA */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x1 << SUNXI_ADC_ACTL_PREG1EN, 0x0 << SUNXI_ADC_ACTL_PREG1EN);
+	/* Disable MIC1 Pre-Amplifier */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+			   BIT(SUNXI_ADC_ACTL_PREG1EN), 0);
 
-	/* enable VMIC */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x1 << SUNXI_ADC_ACTL_VMICEN, 0x0 << SUNXI_ADC_ACTL_VMICEN);
+	/* Disable VMIC */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+			   BIT(SUNXI_ADC_ACTL_VMICEN), 0);
 
 	/* TODO: undocumented */
 	if (of_device_is_compatible(priv->dev->of_node,
@@ -148,17 +159,18 @@ static void sunxi_codec_capture_stop(struct sunxi_priv *priv)
 		regmap_update_bits(priv->regmap, SUNXI_DAC_TUNE,
 				   0x3 << 8, 0);
 
-	/* enable ADC digital */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_EN_AD, 0x0 << SUNXI_ADC_FIFOC_EN_AD);
+	/* Disable ADC digital part */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+			   0x1 << SUNXI_ADC_FIFOC_EN_AD, 0);
 
-	/* set RX FIFO mode */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_RX_FIFO_MODE, 0x0 << SUNXI_ADC_FIFOC_RX_FIFO_MODE);
+	/* Fill in the least significant bits with 0 */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+			   BIT(SUNXI_ADC_FIFOC_RX_FIFO_MODE), 0);
 
-	/* flush RX FIFO */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_FIFO_FLUSH, 0x0 << SUNXI_ADC_FIFOC_FIFO_FLUSH);
-
-	/* enable adc1 analog */
-	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x3 << SUNXI_ADC_ACTL_ADCLEN, 0x0 << SUNXI_ADC_ACTL_ADCLEN);
+	/* Disable ADC1 analog part */
+	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+			   BIT(SUNXI_ADC_ACTL_ADC_L_EN) |
+			   BIT(SUNXI_ADC_ACTL_ADC_R_EN), 0);
 }
 
 static int sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -176,6 +188,7 @@ static int sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd,
 		else
 			sunxi_codec_play_start(priv);
 		break;
+
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -184,6 +197,7 @@ static int sunxi_codec_trigger(struct snd_pcm_substream *substream, int cmd,
 		else
 			sunxi_codec_play_stop(priv);
 		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -198,27 +212,48 @@ static int sunxi_codec_prepare(struct snd_pcm_substream *substream,
 	struct sunxi_priv *priv = snd_soc_card_get_drvdata(rtd->card);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_FIFO_FLUSH, 0x1 << SUNXI_DAC_FIFOC_FIFO_FLUSH);
+		/* Flush the TX FIFO */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   BIT(SUNXI_DAC_FIFOC_FIFO_FLUSH),
+				   BIT(SUNXI_DAC_FIFOC_FIFO_FLUSH));
 
-		/* set TX FIFO send DRQ level */
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x3f << SUNXI_DAC_FIFOC_TX_TRIG_LEVEL, 0xf << SUNXI_DAC_FIFOC_TX_TRIG_LEVEL);
-		if (substream->runtime->rate > 32000) {
-			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_FIR_VERSION, 0x0 << SUNXI_DAC_FIFOC_FIR_VERSION);
-		} else {
-			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_FIR_VERSION, 0x1 << SUNXI_DAC_FIFOC_FIR_VERSION);
-		}
+		/* Set TX FIFO Empty Trigger Level */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   0x3f << SUNXI_DAC_FIFOC_TX_TRIG_LEVEL,
+				   0xf << SUNXI_DAC_FIFOC_TX_TRIG_LEVEL);
 
-		/* send last sample when DAC FIFO under run */
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 0x1 << SUNXI_DAC_FIFOC_SEND_LASAT, 0x0 << SUNXI_DAC_FIFOC_SEND_LASAT);
+		if (substream->runtime->rate > 32000)
+			/* Use 64 bits FIR filter */
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_FIR_VERSION), 0);
+		else
+			/* Use 32 bits FIR filter */
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_FIR_VERSION),
+					   BIT(SUNXI_DAC_FIFOC_FIR_VERSION));
+
+		/* Send zeros when we have an underrun */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   BIT(SUNXI_DAC_FIFOC_SEND_LASAT), 0);
 	} else {
-		/* enable mic1 PA */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x1 << SUNXI_ADC_ACTL_PREG1EN, 0x1 << SUNXI_ADC_ACTL_PREG1EN);
+		/* Enable Mic1 Pre-Amplifier */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+				   BIT(SUNXI_ADC_ACTL_PREG1EN),
+				   BIT(SUNXI_ADC_ACTL_PREG1EN));
 
-		/* mic1 gain 32dB */  /* FIXME - makes no sense */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x3 << 25, 0x1 << 25);
+		/*
+		 * FIXME: Undocumented in the datasheet, but
+		 *        Allwinner's code mentions that it is related
+		 *        related to microphone gain
+		 */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+				   0x3 << 25,
+				   0x1 << 25);
 
-		/* enable VMIC */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x1 << SUNXI_ADC_ACTL_VMICEN, 0x1 << SUNXI_ADC_ACTL_VMICEN);
+		/* Enable VMIC */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+				   BIT(SUNXI_ADC_ACTL_VMICEN),
+				   BIT(SUNXI_ADC_ACTL_VMICEN));
 
 		if (of_device_is_compatible(priv->dev->of_node,
 					    "allwinner,sun7i-a20-codec"))
@@ -227,20 +262,32 @@ static int sunxi_codec_prepare(struct snd_pcm_substream *substream,
 					   0x3 << 8,
 					   0x1 << 8);
 
-		/* enable ADC digital */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_EN_AD, 0x1 << SUNXI_ADC_FIFOC_EN_AD);
+		/* Enable ADC digital part */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+				   BIT(SUNXI_ADC_FIFOC_EN_AD),
+				   BIT(SUNXI_ADC_FIFOC_EN_AD));
 
-		/* set RX FIFO mode */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_RX_FIFO_MODE, 0x1 << SUNXI_ADC_FIFOC_RX_FIFO_MODE);
+		/* Fill most significant bits with valid data MSB */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+				   BIT(SUNXI_ADC_FIFOC_RX_FIFO_MODE),
+				   BIT(SUNXI_ADC_FIFOC_RX_FIFO_MODE));
 
-		/* flush RX FIFO */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_FIFO_FLUSH, 0x1 << SUNXI_ADC_FIFOC_FIFO_FLUSH);
+		/* Flush RX FIFO */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+				   BIT(SUNXI_ADC_FIFOC_FIFO_FLUSH),
+				   BIT(SUNXI_ADC_FIFOC_FIFO_FLUSH));
 
-		/* set RX FIFO rec drq level */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0xf << SUNXI_ADC_FIFOC_RX_TRIG_LEVEL, 0x7 << SUNXI_ADC_FIFOC_RX_TRIG_LEVEL);
+		/* Set RX FIFO trigger level */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+				   0xf << SUNXI_ADC_FIFOC_RX_TRIG_LEVEL,
+				   0x7 << SUNXI_ADC_FIFOC_RX_TRIG_LEVEL);
 
-		/* enable adc1 analog */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x3 << SUNXI_ADC_ACTL_ADCLEN, 0x3 << SUNXI_ADC_ACTL_ADCLEN);
+		/* Enable ADC1 analog parts */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL,
+				   BIT(SUNXI_ADC_ACTL_ADC_L_EN) |
+				   BIT(SUNXI_ADC_ACTL_ADC_R_EN),
+				   BIT(SUNXI_ADC_ACTL_ADC_L_EN) |
+				   BIT(SUNXI_ADC_ACTL_ADC_R_EN));
 	}
 
 	return 0;
@@ -269,6 +316,7 @@ static int sunxi_codec_hw_params(struct snd_pcm_substream *substream,
 	default:
 		clk_set_rate(priv->clk_module, 22579200);
 		break;
+
 	case 192000:
 	case 96000:
 	case 48000:
@@ -318,17 +366,41 @@ static int sunxi_codec_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 7 << SUNXI_DAC_FIFOC_DAC_FS, hwrate << SUNXI_DAC_FIFOC_DAC_FS);
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 1 << SUNXI_DAC_FIFOC_MONO_EN, is_mono << SUNXI_DAC_FIFOC_MONO_EN);
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 1 << SUNXI_DAC_FIFOC_TX_SAMPLE_BITS, is_24bit << SUNXI_DAC_FIFOC_TX_SAMPLE_BITS);
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 1 << SUNXI_DAC_FIFOC_TX_FIFO_MODE, !is_24bit << SUNXI_DAC_FIFOC_TX_FIFO_MODE);
+		/* Set DAC sample rate */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   7 << SUNXI_DAC_FIFOC_DAC_FS,
+				   hwrate << SUNXI_DAC_FIFOC_DAC_FS);
+
+		/* Set the number of channels we want to use */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   BIT(SUNXI_DAC_FIFOC_MONO_EN),
+				   is_mono << SUNXI_DAC_FIFOC_MONO_EN);
+
+		/* Set the number of sample bits to either 16 or 24 bits */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   BIT(SUNXI_DAC_FIFOC_TX_SAMPLE_BITS),
+				   is_24bit << SUNXI_DAC_FIFOC_TX_SAMPLE_BITS);
+
+		/* Set TX FIFO mode to padding the LSBs with 0 */
+		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   BIT(SUNXI_DAC_FIFOC_TX_FIFO_MODE),
+				   !is_24bit << SUNXI_DAC_FIFOC_TX_FIFO_MODE);
+
 		if (is_24bit)
 			priv->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		else
 			priv->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+
 	} else  {
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 7 << SUNXI_DAC_FIFOC_DAC_FS, hwrate << SUNXI_DAC_FIFOC_DAC_FS);
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 1 << SUNXI_ADC_FIFOC_MONO_EN, is_mono << SUNXI_ADC_FIFOC_MONO_EN);
+		/* Set DAC sample rate */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+				   7 << SUNXI_DAC_FIFOC_DAC_FS,
+				   hwrate << SUNXI_DAC_FIFOC_DAC_FS);
+
+		/* Set the number of channels we want to use */
+		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+				   BIT(SUNXI_ADC_FIFOC_MONO_EN),
+				   is_mono << SUNXI_ADC_FIFOC_MONO_EN);
 	}
 
 	return 0;
@@ -390,14 +462,18 @@ static int sunxi_codec_dai_probe(struct snd_soc_dai *dai)
 	struct snd_soc_card *card = snd_soc_dai_get_drvdata(dai);
 	struct sunxi_priv *priv = snd_soc_card_get_drvdata(card);
 
-	snd_soc_dai_init_dma_data(dai, &priv->playback_dma_data, &priv->capture_dma_data);
+	snd_soc_dai_init_dma_data(dai, &priv->playback_dma_data,
+				  &priv->capture_dma_data);
 
 	return 0;
 }
 
 static void sunxi_codec_init(struct sunxi_priv *priv)
 {
-	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 1 << SUNXI_DAC_FIFOC_FIR_VERSION, 1 << SUNXI_DAC_FIFOC_FIR_VERSION);
+	/* Use a 32 bits FIR */
+	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+			   BIT(SUNXI_DAC_FIFOC_FIR_VERSION),
+			   BIT(SUNXI_DAC_FIFOC_FIR_VERSION));
 
 	/* Set digital volume to maximum */
 	if (of_device_is_compatible(priv->dev->of_node,
@@ -406,8 +482,13 @@ static void sunxi_codec_init(struct sunxi_priv *priv)
 				   0x3F << SUNXI_DAC_DPC_DVOL,
 				   0 << SUNXI_DAC_DPC_DVOL);
 
-
-	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 3 << SUNXI_DAC_FIFOC_DRQ_CLR_CNT, 3 << SUNXI_DAC_FIFOC_DRQ_CLR_CNT);
+	/*
+	 * Stop issuing DRQ when we have room for less than 16 samples
+	 * in our TX FIFO
+	 */
+	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+			   3 << SUNXI_DAC_FIFOC_DRQ_CLR_CNT,
+			   3 << SUNXI_DAC_FIFOC_DRQ_CLR_CNT);
 
 	/* FIXME: is A10A inverted? */
 	/* Set default volume */
@@ -417,7 +498,9 @@ static void sunxi_codec_init(struct sunxi_priv *priv)
 				   0x3f << SUNXI_DAC_ACTL_PA_VOL,
 				   1 << SUNXI_DAC_ACTL_PA_VOL);
 	else
-		regmap_update_bits(priv->regmap, SUNXI_DAC_ACTL, 0x3f << SUNXI_DAC_ACTL_PA_VOL, 0x3b << SUNXI_DAC_ACTL_PA_VOL);
+		regmap_update_bits(priv->regmap, SUNXI_DAC_ACTL,
+				   0x3f << SUNXI_DAC_ACTL_PA_VOL,
+				   0x3b << SUNXI_DAC_ACTL_PA_VOL);
 }
 
 static int sunxi_codec_startup(struct snd_pcm_substream *substream,
@@ -443,42 +526,44 @@ static void sunxi_codec_shutdown(struct snd_pcm_substream *substream,
 /*** Codec DAI ***/
 
 static const struct snd_soc_dai_ops sunxi_codec_dai_ops = {
-	.startup = sunxi_codec_startup,
-	.shutdown = sunxi_codec_shutdown,
-	.trigger = sunxi_codec_trigger,
-	.hw_params = sunxi_codec_hw_params,
-	.prepare = sunxi_codec_prepare,
+	.startup	= sunxi_codec_startup,
+	.shutdown	= sunxi_codec_shutdown,
+	.trigger	= sunxi_codec_trigger,
+	.hw_params	= sunxi_codec_hw_params,
+	.prepare	= sunxi_codec_prepare,
 };
 
 static struct snd_soc_dai_driver sunxi_codec_dai = {
-	.name = "Codec",
+	.name	= "Codec",
+	.ops	= &sunxi_codec_dai_ops,
 	.playback = {
-		.stream_name = "Codec Playback",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rate_min = 8000,
-		.rate_max = 192000,
-		.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_11025 |\
-			 SNDRV_PCM_RATE_22050| SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
-			 SNDRV_PCM_RATE_48000 |SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000 |\
-			 SNDRV_PCM_RATE_KNOT),
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE),
-		.sig_bits = 24,
+		.stream_name	= "Codec Playback",
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rate_min	= 8000,
+		.rate_max	= 192000,
+		.rates		= SNDRV_PCM_RATE_8000_48000 |
+				  SNDRV_PCM_RATE_96000 |
+				  SNDRV_PCM_RATE_192000 |
+				  SNDRV_PCM_RATE_KNOT,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
+		.sig_bits	= 24,
 	},
 	.capture = {
-		.stream_name = "Codec Capture",
-		.channels_min = 1,
-		.channels_max = 2,
-		.rate_min = 8000,
-		.rate_max = 192000,
-		.rates = (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_11025 |\
-			 SNDRV_PCM_RATE_22050| SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
-			 SNDRV_PCM_RATE_48000 |SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000 |\
-			 SNDRV_PCM_RATE_KNOT),
-		.formats = (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE),
-		.sig_bits = 24,
+		.stream_name	= "Codec Capture",
+		.channels_min	= 1,
+		.channels_max	= 2,
+		.rate_min	= 8000,
+		.rate_max	= 192000,
+		.rates		= SNDRV_PCM_RATE_8000_48000 |
+				  SNDRV_PCM_RATE_96000 |
+				  SNDRV_PCM_RATE_192000 |
+				  SNDRV_PCM_RATE_KNOT,
+		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
+				  SNDRV_PCM_FMTBIT_S32_LE,
+		.sig_bits	= 24,
 	},
-	.ops = &sunxi_codec_dai_ops,
 };
 
 /*** Codec ***/
@@ -705,6 +790,7 @@ static int sunxi_codec_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get apb clock\n");
 		return PTR_ERR(priv->clk_apb);
 	}
+
 	priv->clk_module = devm_clk_get(dev, "codec");
 	if (IS_ERR(priv->clk_module)) {
 		dev_err(dev, "failed to get codec clock\n");
@@ -735,9 +821,12 @@ static int sunxi_codec_probe(struct platform_device *pdev)
 	priv->capture_dma_data.maxburst = 4;
 	priv->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 
-	ret = snd_soc_register_codec(&pdev->dev, &sunxi_codec, &sunxi_codec_dai, 1);
+	ret = snd_soc_register_codec(&pdev->dev, &sunxi_codec, &sunxi_codec_dai,
+				     1);
 
-	ret = devm_snd_soc_register_component(&pdev->dev, &sunxi_codec_component, &dummy_cpu_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &sunxi_codec_component,
+					      &dummy_cpu_dai, 1);
 	if (ret)
 		goto err_clk_disable;
 
