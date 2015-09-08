@@ -299,8 +299,6 @@ static int sunxi_codec_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sunxi_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	int is_mono = !!(params_channels(params) == 1);
-	int is_24bit = !!(hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS)->min == 32);
 	unsigned int rate = params_rate(params);
 	unsigned int hwrate;
 
@@ -372,35 +370,50 @@ static int sunxi_codec_hw_params(struct snd_pcm_substream *substream,
 				   hwrate << SUNXI_DAC_FIFOC_DAC_FS);
 
 		/* Set the number of channels we want to use */
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
-				   BIT(SUNXI_DAC_FIFOC_MONO_EN),
-				   is_mono << SUNXI_DAC_FIFOC_MONO_EN);
+		if (params_channels(params) == 1)
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_MONO_EN),
+					   BIT(SUNXI_DAC_FIFOC_MONO_EN));
+		else
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_MONO_EN), 0);
 
 		/* Set the number of sample bits to either 16 or 24 bits */
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
-				   BIT(SUNXI_DAC_FIFOC_TX_SAMPLE_BITS),
-				   is_24bit << SUNXI_DAC_FIFOC_TX_SAMPLE_BITS);
+		if (hw_param_interval(params, SNDRV_PCM_HW_PARAM_SAMPLE_BITS)->min == 32) {
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_TX_SAMPLE_BITS),
+					   BIT(SUNXI_DAC_FIFOC_TX_SAMPLE_BITS));
 
-		/* Set TX FIFO mode to padding the LSBs with 0 */
-		regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
-				   BIT(SUNXI_DAC_FIFOC_TX_FIFO_MODE),
-				   !is_24bit << SUNXI_DAC_FIFOC_TX_FIFO_MODE);
+			/* Set TX FIFO mode to padding the LSBs with 0 */
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+				   BIT(SUNXI_DAC_FIFOC_TX_FIFO_MODE), 0);
 
-		if (is_24bit)
 			priv->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-		else
-			priv->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+		} else {
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_TX_SAMPLE_BITS), 0);
 
-	} else  {
+			/* Set TX FIFO mode to repeat the MSB */
+			regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC,
+					   BIT(SUNXI_DAC_FIFOC_TX_FIFO_MODE),
+					   BIT(SUNXI_DAC_FIFOC_TX_FIFO_MODE));
+
+			priv->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
+		}
+	} else {
 		/* Set DAC sample rate */
 		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
 				   7 << SUNXI_DAC_FIFOC_DAC_FS,
 				   hwrate << SUNXI_DAC_FIFOC_DAC_FS);
 
 		/* Set the number of channels we want to use */
-		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
-				   BIT(SUNXI_ADC_FIFOC_MONO_EN),
-				   is_mono << SUNXI_ADC_FIFOC_MONO_EN);
+		if (params_channels(params) == 1)
+			regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+					   BIT(SUNXI_ADC_FIFOC_MONO_EN),
+					   BIT(SUNXI_ADC_FIFOC_MONO_EN));
+		else
+			regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC,
+					   BIT(SUNXI_ADC_FIFOC_MONO_EN), 0);
 	}
 
 	return 0;
