@@ -95,19 +95,10 @@
 #define SUNXI_AC_SYS_VERI		(0x38)
 #define SUNXI_AC_MIC_PHONE_CAL		(0x3c)
 
-/* Supported SoC families - used for quirks */
-enum sunxi_soc_family {
-	SUN4IA,	/* A10 SoC - revision A */
-	SUN4I,	/* A10 SoC - later revisions */
-	SUN5I,	/* A10S/A13 SoCs */
-	SUN7I,	/* A20 SoC */
-};
-
 struct sunxi_priv {
 	struct regmap *regmap;
 	struct clk *clk_apb, *clk_module;
-
-	enum sunxi_soc_family revision;
+	struct device	*dev;
 
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
@@ -150,10 +141,12 @@ static void sunxi_codec_capture_stop(struct sunxi_priv *priv)
 
 	/* enable VMIC */
 	regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x1 << SUNXI_ADC_ACTL_VMICEN, 0x0 << SUNXI_ADC_ACTL_VMICEN);
-	if (priv->revision == SUN7I) {
-		/* TODO: undocumented */
-		regmap_update_bits(priv->regmap, SUNXI_DAC_TUNE, 0x3 << 8, 0x0 << 8);
-	}
+
+	/* TODO: undocumented */
+	if (of_device_is_compatible(priv->dev->of_node,
+				    "allwinner,sun7i-a20-codec"))
+		regmap_update_bits(priv->regmap, SUNXI_DAC_TUNE,
+				   0x3 << 8, 0);
 
 	/* enable ADC digital */
 	regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_EN_AD, 0x0 << SUNXI_ADC_FIFOC_EN_AD);
@@ -227,10 +220,12 @@ static int sunxi_codec_prepare(struct snd_pcm_substream *substream,
 		/* enable VMIC */
 		regmap_update_bits(priv->regmap, SUNXI_ADC_ACTL, 0x1 << SUNXI_ADC_ACTL_VMICEN, 0x1 << SUNXI_ADC_ACTL_VMICEN);
 
-		if (priv->revision == SUN7I) {
-			/* boost up record effect */
-			regmap_update_bits(priv->regmap, SUNXI_DAC_TUNE, 0x3 << 8, 0x1 << 8);
-		}
+		if (of_device_is_compatible(priv->dev->of_node,
+					    "allwinner,sun7i-a20-codec"))
+			/* FIXME: Undocumented bits */
+			regmap_update_bits(priv->regmap, SUNXI_DAC_TUNE,
+					   0x3 << 8,
+					   0x1 << 8);
 
 		/* enable ADC digital */
 		regmap_update_bits(priv->regmap, SUNXI_ADC_FIFOC, 0x1 << SUNXI_ADC_FIFOC_EN_AD, 0x1 << SUNXI_ADC_FIFOC_EN_AD);
@@ -404,15 +399,23 @@ static void sunxi_codec_init(struct sunxi_priv *priv)
 {
 	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 1 << SUNXI_DAC_FIFOC_FIR_VERSION, 1 << SUNXI_DAC_FIFOC_FIR_VERSION);
 
-	/* set digital volume to maximum */
-	if (priv->revision == SUN4IA)
-		regmap_update_bits(priv->regmap, SUNXI_DAC_DPC, 0x3F << SUNXI_DAC_DPC_DVOL, 0 << SUNXI_DAC_DPC_DVOL);
+	/* Set digital volume to maximum */
+	if (of_device_is_compatible(priv->dev->of_node,
+				    "allwinner,sun4i-a10a-codec"))
+		regmap_update_bits(priv->regmap, SUNXI_DAC_DPC,
+				   0x3F << SUNXI_DAC_DPC_DVOL,
+				   0 << SUNXI_DAC_DPC_DVOL);
+
 
 	regmap_update_bits(priv->regmap, SUNXI_DAC_FIFOC, 3 << SUNXI_DAC_FIFOC_DRQ_CLR_CNT, 3 << SUNXI_DAC_FIFOC_DRQ_CLR_CNT);
 
-	/* set volume */ /* TODO: is A10A inverted? */
-	if (priv->revision == SUN4IA)
-		regmap_update_bits(priv->regmap, SUNXI_DAC_ACTL, 0x3f << SUNXI_DAC_ACTL_PA_VOL, 1 << SUNXI_DAC_ACTL_PA_VOL);
+	/* FIXME: is A10A inverted? */
+	/* Set default volume */
+	if (of_device_is_compatible(priv->dev->of_node,
+				    "allwinner,sun4i-a10a-codec"))
+		regmap_update_bits(priv->regmap, SUNXI_DAC_ACTL,
+				   0x3f << SUNXI_DAC_ACTL_PA_VOL,
+				   1 << SUNXI_DAC_ACTL_PA_VOL);
 	else
 		regmap_update_bits(priv->regmap, SUNXI_DAC_ACTL, 0x3f << SUNXI_DAC_ACTL_PA_VOL, 0x3b << SUNXI_DAC_ACTL_PA_VOL);
 }
@@ -660,41 +663,31 @@ static const struct regmap_config sunxi_codec_regmap_config = {
 };
 
 static const struct of_device_id sunxi_codec_of_match[] = {
-	{ .compatible = "allwinner,sun4i-a10a-codec", .data = (void *)SUN4IA},
-	{ .compatible = "allwinner,sun4i-a10-codec", .data = (void *)SUN4I},
-	{ .compatible = "allwinner,sun5i-a13-codec", .data = (void *)SUN5I},
-	{ .compatible = "allwinner,sun7i-a20-codec", .data = (void *)SUN7I},
+	{ .compatible = "allwinner,sun4i-a10a-codec" },
+	{ .compatible = "allwinner,sun4i-a10-codec" },
+	{ .compatible = "allwinner,sun5i-a13-codec" },
+	{ .compatible = "allwinner,sun7i-a20-codec" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sunxi_codec_of_match);
 
 static int sunxi_codec_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_card *card = &snd_soc_sunxi_codec;
-	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct sunxi_priv *priv;
 	struct resource *res;
 	void __iomem *base;
 	int ret;
 
-	if (!of_device_is_available(np))
-		return -ENODEV;
-
-	of_id = of_match_device(sunxi_codec_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
-
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
+	priv->dev = &pdev->dev;
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, priv);
-
-	priv->revision = (enum sunxi_soc_family)of_id->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
