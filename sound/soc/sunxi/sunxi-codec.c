@@ -552,15 +552,12 @@ static const struct snd_kcontrol_new sun4i_codec_right_mixer_controls[] = {
 			SUNXI_DAC_ACTL_LDACRMIXS, 1, 0),
 };
 
-static const char *sunxi_dac_output_text[] = { "Muted", "Mixed", "Direct" };
-static const unsigned int sunxi_dac_output_values[] = { 0x0, 0x1, 0x2 };
-static SOC_VALUE_ENUM_SINGLE_DECL(dac_output_mux, SUNXI_DAC_ACTL,
-				  SUNXI_DAC_ACTL_MIXPAS, 0x3,
-				  sunxi_dac_output_text,
-				  sunxi_dac_output_values);
-
-static const struct snd_kcontrol_new sunxi_dac_output =
-	SOC_DAPM_ENUM("DAC Output", dac_output_mux);
+static const struct snd_kcontrol_new sun4i_codec_pa_mixer_controls[] = {
+	SOC_DAPM_SINGLE("DAC Playback Switch", SUNXI_DAC_ACTL,
+			SUNXI_DAC_ACTL_DACPAS, 1, 0),
+	SOC_DAPM_SINGLE("Mixer Playback Switch", SUNXI_DAC_ACTL,
+			SUNXI_DAC_ACTL_MIXPAS, 1, 0),
+};
 
 static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 	/* Digital parts of the DACs */
@@ -587,12 +584,12 @@ static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 			    SUNXI_DAC_ACTL_MIXEN, 0, NULL, 0),
 
 	/* Pre-Amplifier */
-	SND_SOC_DAPM_PGA("Pre-Amplifier", SUNXI_ADC_ACTL,
-			 SUNXI_ADC_ACTL_PA_EN, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Pre-Amplifier", SUNXI_ADC_ACTL,
+			   SUNXI_ADC_ACTL_PA_EN, 0,
+			   sun4i_codec_pa_mixer_controls,
+			   ARRAY_SIZE(sun4i_codec_pa_mixer_controls)),
 	SND_SOC_DAPM_SWITCH("Pre-Amplifier Mute", SND_SOC_NOPM, 0, 0,
 			    &sun4i_codec_pa_mute),
-
-	SND_SOC_DAPM_MUX("DAC Output", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_MIXPAS, 0, &sunxi_dac_output),
 
 	SND_SOC_DAPM_OUTPUT("Mic Bias"),
 	SND_SOC_DAPM_OUTPUT("HP Right"),
@@ -608,11 +605,6 @@ static const struct snd_soc_dapm_route codec_dapm_routes[] = {
 	/* Right DAC Routes */
 	{ "Right DAC", NULL, "DAC" },
 
-	/* DAC -> PA path */
-	{ "DAC Output", "Direct", "Left DAC" },
-	{ "DAC Output", "Direct", "Right DAC" },
-	{ "Pre-Amplifier", NULL, "DAC Output"},
-
 	/* Right Mixer Routes */
 	{ "Right Mixer", NULL, "Mixer Enable" },
 	{ "Right Mixer", "Left DAC Playback Switch", "Left DAC" },
@@ -622,9 +614,11 @@ static const struct snd_soc_dapm_route codec_dapm_routes[] = {
 	{ "Left Mixer", NULL, "Mixer Enable" },
 	{ "Left Mixer", "Left DAC Playback Switch", "Left DAC" },
 
-	/* DAC -> MIX -> PA path */
-	{ "DAC Output", "Mixed", "Mixer" },
-	{ "Pre-Amplifier", NULL, "DAC Output" },
+	/* Pre-Amplifier Mixer Routes */
+	{ "Pre-Amplifier", "Mixer Playback Switch", "Left Mixer" },
+	{ "Pre-Amplifier", "Mixer Playback Switch", "Right Mixer" },
+	{ "Pre-Amplifier", "DAC Playback Switch", "Left DAC" },
+	{ "Pre-Amplifier", "DAC Playback Switch", "Right DAC" },
 
 	/* PA -> HP path */
 	{ "Pre-Amplifier Mute", "Switch", "Pre-Amplifier" },
