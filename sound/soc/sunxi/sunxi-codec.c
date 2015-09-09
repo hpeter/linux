@@ -540,25 +540,17 @@ static const struct snd_kcontrol_new sunxi_codec_widgets[] = {
 		       0x3F, 0, sunxi_pa_volume_scale),
 };
 
-static const char *right_output_mixer_text[] = { "Disabled", "Left", "Right" };
-static const unsigned int right_output_mixer_values[] = { 0x0, 0x1, 0x2 };
-static SOC_VALUE_ENUM_SINGLE_DECL(right_output_mixer, SUNXI_DAC_ACTL,
-				  SUNXI_DAC_ACTL_LDACRMIXS, 0x3,
-				  right_output_mixer_text,
-				  right_output_mixer_values);
+static const struct snd_kcontrol_new sun4i_codec_left_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Left DAC Playback Switch", SUNXI_DAC_ACTL,
+			SUNXI_DAC_ACTL_LDACLMIXS, 1, 0),
+};
 
-static const char *left_output_mixer_text[] = { "Disabled", "Left" };
-static const unsigned int left_output_mixer_values[] = { 0x0, 0x1 };
-static SOC_VALUE_ENUM_SINGLE_DECL(left_output_mixer, SUNXI_DAC_ACTL,
-				  SUNXI_DAC_ACTL_LDACLMIXS, 0x1,
-				  left_output_mixer_text,
-				  left_output_mixer_values);
-
-static const struct snd_kcontrol_new right_mixer =
-	SOC_DAPM_ENUM("Right Mixer", right_output_mixer);
-
-static const struct snd_kcontrol_new left_mixer =
-	SOC_DAPM_ENUM("Left Mixer", left_output_mixer);
+static const struct snd_kcontrol_new sun4i_codec_right_mixer_controls[] = {
+	SOC_DAPM_SINGLE("Right DAC Playback Switch", SUNXI_DAC_ACTL,
+			SUNXI_DAC_ACTL_RDACRMIXS, 1, 0),
+	SOC_DAPM_SINGLE("Left DAC Playback Switch", SUNXI_DAC_ACTL,
+			SUNXI_DAC_ACTL_LDACRMIXS, 1, 0),
+};
 
 static const struct snd_kcontrol_new sunxi_mixer =
 	SOC_DAPM_SINGLE("Mixer Switch", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_MIXEN, 1, 0);
@@ -585,14 +577,20 @@ static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Right DAC", "Codec Playback", SUNXI_DAC_ACTL,
 			 SUNXI_DAC_ACTL_DACAENR, 0),
 
+	/* Mixers */
+	SND_SOC_DAPM_MIXER("Left Mixer", SND_SOC_NOPM, 0, 0,
+			   sun4i_codec_left_mixer_controls,
+			   ARRAY_SIZE(sun4i_codec_left_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Right Mixer", SND_SOC_NOPM, 0, 0,
+			   sun4i_codec_right_mixer_controls,
+			   ARRAY_SIZE(sun4i_codec_right_mixer_controls)),
+
 	/* Pre-Amplifier */
 	SND_SOC_DAPM_PGA("Pre-Amplifier", SUNXI_ADC_ACTL,
 			 SUNXI_ADC_ACTL_PA_EN, 0, NULL, 0),
 	SND_SOC_DAPM_SWITCH("Pre-Amplifier Mute", SND_SOC_NOPM, 0, 0,
 			    &sun4i_codec_pa_mute),
 
-	SND_SOC_DAPM_MUX("Right Mixer", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_LDACRMIXS, 0, &right_mixer),
-	SND_SOC_DAPM_MUX("Left Mixer", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_LDACLMIXS, 0, &left_mixer),
 	SND_SOC_DAPM_SWITCH("Mixer", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_MIXEN, 0, &sunxi_mixer),
 
 	SND_SOC_DAPM_MUX("DAC Output", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_MIXPAS, 0, &sunxi_dac_output),
@@ -614,9 +612,14 @@ static const struct snd_soc_dapm_route codec_dapm_routes[] = {
 	{ "DAC Output", "Direct", "Right DAC" },
 	{ "Pre-Amplifier", NULL, "DAC Output"},
 
+	/* Right Mixer Routes */
+	{ "Right Mixer", "Left DAC Playback Switch", "Left DAC" },
+	{ "Right Mixer", "Right DAC Playback Switch", "Right DAC" },
+
+	/* Left Mixer Routes */
+	{ "Left Mixer", "Left DAC Playback Switch", "Left DAC" },
+
 	/* DAC -> MIX -> PA path */
-	{ "Left Mixer", "Left", "Left DAC" },
-	{ "Right Mixer", "Right", "Right DAC" },
 	{ "Mixer", NULL, "Left Mixer" },
 	{ "Mixer", NULL, "Right Mixer" },
 	{ "DAC Output", "Mixed", "Mixer" },
