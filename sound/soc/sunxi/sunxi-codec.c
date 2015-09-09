@@ -419,57 +419,6 @@ static int sunxi_codec_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_kcontrol_new sun7i_dac_ctls[] = {
-	/*SUNXI_DAC_ACTL = 0x10,PAVOL*/
-	SOC_SINGLE("Master Playback Volume", SUNXI_DAC_ACTL, 0, 0x3f, 0),
-	SOC_SINGLE("Playback Switch", SUNXI_DAC_ACTL, 6, 1, 0), /* Global output switch */
-	SOC_SINGLE("FmL Switch", SUNXI_DAC_ACTL, 17, 1, 0), /* FM left switch */
-	SOC_SINGLE("FmR Switch", SUNXI_DAC_ACTL, 16, 1, 0), /* FM right switch */
-	SOC_SINGLE("LineL Switch", SUNXI_DAC_ACTL, 19, 1, 0), /* Line left switch */
-	SOC_SINGLE("LineR Switch", SUNXI_DAC_ACTL, 18, 1, 0), /* Line right switch */
-	SOC_SINGLE("Ldac Left Mixer", SUNXI_DAC_ACTL, 15, 1, 0),
-	SOC_SINGLE("Rdac Right Mixer", SUNXI_DAC_ACTL, 14, 1, 0),
-	SOC_SINGLE("Ldac Right Mixer", SUNXI_DAC_ACTL, 13, 1, 0),
-	SOC_SINGLE("Mic Input Mux", SUNXI_DAC_ACTL, 9, 15, 0), /* from bit 9 to bit 12. Microphone input mute */
-	SOC_SINGLE("MIC output volume", SUNXI_DAC_ACTL, 20, 7, 0),
-	/*	FM Input to output mixer Gain Control
-	* 	From -4.5db to 6db,1.5db/step,default is 0db
-	*	-4.5db:0x0,-3.0db:0x1,-1.5db:0x2,0db:0x3
-	*	1.5db:0x4,3.0db:0x5,4.5db:0x6,6db:0x7
-	*/
-	SOC_SINGLE("Fm output Volume", SUNXI_DAC_ACTL, 23, 7, 0),
-	/*	Line-in gain stage to output mixer Gain Control
-	*	0:-1.5db,1:0db
-	*/
-	SOC_SINGLE("Line output Volume", SUNXI_DAC_ACTL, 26, 1, 0),
-
-	SOC_SINGLE("Master Capture Mute", SUNXI_ADC_ACTL, 4, 1, 0),
-	SOC_SINGLE("Right Capture Mute", SUNXI_ADC_ACTL, 31, 1, 0),
-	SOC_SINGLE("Left Capture Mute", SUNXI_ADC_ACTL, 30, 1, 0),
-	SOC_SINGLE("Linein Pre-AMP", SUNXI_ADC_ACTL, 13, 7, 0),
-	SOC_SINGLE("LINEIN APM Volume", SUNXI_AC_MIC_PHONE_CAL, 13, 0x7, 0),
-	/* ADC Input Gain Control, capture volume
-	* 000:-4.5db,001:-3db,010:-1.5db,011:0db,100:1.5db,101:3db,110:4.5db,111:6db
-	*/
-	SOC_SINGLE("Capture Volume", SUNXI_ADC_ACTL, 20, 7, 0),
-	/*
-	*	MIC2 pre-amplifier Gain Control
-	*	00:0db,01:35db,10:38db,11:41db
-	*/
-	SOC_SINGLE("MicL Volume", SUNXI_ADC_ACTL, 25, 3, 0), /* Microphone left volume */
-	SOC_SINGLE("MicR Volume", SUNXI_ADC_ACTL, 23, 3, 0), /* Microphone right volume */
-	SOC_SINGLE("Mic2 Boost", SUNXI_ADC_ACTL, 29, 1, 0),
-	SOC_SINGLE("Mic1 Boost", SUNXI_ADC_ACTL, 28, 1, 0),
-	SOC_SINGLE("Mic Power", SUNXI_ADC_ACTL, 27, 1, 0),
-	SOC_SINGLE("ADC Input Mux", SUNXI_ADC_ACTL, 17, 7, 0), /* ADC input mute */
-	SOC_SINGLE("Mic2 gain Volume", SUNXI_AC_MIC_PHONE_CAL, 26, 7, 0),
-	/*
-	*	MIC1 pre-amplifier Gain Control
-	*	00:0db,01:35db,10:38db,11:41db
-	*/
-	SOC_SINGLE("Mic1 gain Volume", SUNXI_AC_MIC_PHONE_CAL, 29, 3, 0),
-};
-
 static int sunxi_codec_dai_probe(struct snd_soc_dai *dai)
 {
 	struct snd_soc_card *card = snd_soc_dai_get_drvdata(dai);
