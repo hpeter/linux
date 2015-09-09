@@ -602,8 +602,10 @@ static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route codec_dapm_routes[] = {
-	/* DAC block */
+	/* Left DAC Routes */
 	{ "Left DAC", NULL, "DAC" },
+
+	/* Right DAC Routes */
 	{ "Right DAC", NULL, "DAC" },
 
 	/* DAC -> PA path */
