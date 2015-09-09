@@ -575,11 +575,15 @@ static const struct snd_kcontrol_new sunxi_dac_output =
 
 static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 	/* Digital parts of the DACs */
-	SND_SOC_DAPM_SUPPLY("DAC", SUNXI_DAC_DPC, SUNXI_DAC_DPC_EN_DA, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("DAC", SUNXI_DAC_DPC,
+			    SUNXI_DAC_DPC_EN_DA, 0,
+			    NULL, 0),
 
 	/* Analog parts of the DACs */
-	SND_SOC_DAPM_DAC("Left DAC", NULL, SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_DACAENL, 0),
-	SND_SOC_DAPM_DAC("Right DAC", NULL, SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_DACAENR, 0),
+	SND_SOC_DAPM_DAC("Left DAC", "Codec Playback", SUNXI_DAC_ACTL,
+			 SUNXI_DAC_ACTL_DACAENL, 0),
+	SND_SOC_DAPM_DAC("Right DAC", "Codec Playback", SUNXI_DAC_ACTL,
+			 SUNXI_DAC_ACTL_DACAENR, 0),
 
 	/* Pre-Amplifier */
 	SND_SOC_DAPM_PGA("Pre-Amplifier", SUNXI_ADC_ACTL,
@@ -602,8 +606,6 @@ static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route codec_dapm_routes[] = {
 	/* DAC block */
-	{ "Left DAC", NULL, "Codec Playback" },
-	{ "Right DAC", NULL, "Codec Playback" },
 	{ "Left DAC", NULL, "DAC" },
 	{ "Right DAC", NULL, "DAC" },
 
