@@ -529,9 +529,9 @@ static struct snd_soc_dai_driver sunxi_codec_dai = {
 };
 
 /*** Codec ***/
-
-static const struct snd_kcontrol_new sunxi_pa_mute =
-	SOC_DAPM_SINGLE("PA Mute Switch", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_PA_MUTE, 1, 0);
+static const struct snd_kcontrol_new sun4i_codec_pa_mute =
+	SOC_DAPM_SINGLE("Switch", SUNXI_DAC_ACTL,
+			SUNXI_DAC_ACTL_PA_MUTE, 1, 0);
 
 static DECLARE_TLV_DB_SCALE(sunxi_pa_volume_scale, -6300, 100, 1);
 
@@ -584,8 +584,8 @@ static const struct snd_soc_dapm_widget codec_dapm_widgets[] = {
 	/* Pre-Amplifier */
 	SND_SOC_DAPM_PGA("Pre-Amplifier", SUNXI_ADC_ACTL,
 			 SUNXI_ADC_ACTL_PA_EN, 0, NULL, 0),
-
-	SND_SOC_DAPM_SWITCH("PA Mute", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_PA_MUTE, 0, &sunxi_pa_mute),
+	SND_SOC_DAPM_SWITCH("Pre-Amplifier Mute", SND_SOC_NOPM, 0, 0,
+			    &sun4i_codec_pa_mute),
 
 	SND_SOC_DAPM_MUX("Right Mixer", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_LDACRMIXS, 0, &right_mixer),
 	SND_SOC_DAPM_MUX("Left Mixer", SUNXI_DAC_ACTL, SUNXI_DAC_ACTL_LDACLMIXS, 0, &left_mixer),
@@ -621,9 +621,9 @@ static const struct snd_soc_dapm_route codec_dapm_routes[] = {
 	{ "Pre-Amplifier", NULL, "DAC Output" },
 
 	/* PA -> HP path */
-	{ "PA Mute", NULL, "Pre-Amplifier" },
-	{ "HP Right", NULL, "PA Mute" },
-	{ "HP Left", NULL, "PA Mute" },
+	{ "Pre-Amplifier Mute", "Switch", "Pre-Amplifier" },
+	{ "HP Right", NULL, "Pre-Amplifier Mute" },
+	{ "HP Left", NULL, "Pre-Amplifier Mute" },
 };
 
 static struct snd_soc_codec_driver sunxi_codec = {
