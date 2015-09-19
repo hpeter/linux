@@ -116,24 +116,24 @@ static const struct sun4i_dai_clk_div sun4i_dai_mclk_div[] = {
 	{ /* Sentinel */ },
 };
 
-static u8 sun4i_dai_params_to_sr(struct snd_pcm_hw_params *params)
+static int sun4i_dai_params_to_sr(struct snd_pcm_hw_params *params)
 {
 	switch (params_width(params)) {
-	case 24:
-		return 2;
+	case 16:
+		return 0;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static u8 sun4i_dai_params_to_wss(struct snd_pcm_hw_params *params)
 {
 	switch (params_width(params)) {
-	case 24:
-		return 2;
+	case 16:
+		return 0;
 	}
 
-	return 0;
+	return -EINVAL;
 }
 
 static int sun4i_dai_get_bclk_div(struct sun4i_dai *sdai,
@@ -223,7 +223,7 @@ static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 			break;
 	}
 
-	if (bclk_div <= 0 || mclk_div <= 0)
+	if (bclk_div <= 0 && mclk_div <= 0)
 		return -EINVAL;
 
 	regmap_update_bits(sdai->regmap, SUN4I_DAI_CLK_DIV_REG,
@@ -240,8 +240,8 @@ static int sun4i_dai_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
+	int sr, wss;
 	u32 width;
-	u8 sr, wss;
 
 	if (params_channels(params) != 2)
 		return -EINVAL;
@@ -260,8 +260,8 @@ static int sun4i_dai_hw_params(struct snd_pcm_substream *substream,
 		     SUN4I_DAI_TX_CHAN_MAP(0, 0) | SUN4I_DAI_TX_CHAN_MAP(1, 1));
 
 	switch (params_physical_width(params)) {
-	case 32:
-		width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+	case 16:
+		width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 	default:
 		return -EINVAL;
@@ -269,7 +269,13 @@ static int sun4i_dai_hw_params(struct snd_pcm_substream *substream,
 	sdai->playback_dma_data.addr_width = width;
 
 	sr = sun4i_dai_params_to_sr(params);
+	if (sr < 0)
+		return -EINVAL;
+
 	wss = sun4i_dai_params_to_wss(params);
+	if (wss < 0)
+		return -EINVAL;
+
 	regmap_update_bits(sdai->regmap, SUN4I_DAI_FMT0_REG,
 			   SUN4I_DAI_FMT0_WSS_MASK | SUN4I_DAI_FMT0_SR_MASK,
 			   SUN4I_DAI_FMT0_WSS(wss) | SUN4I_DAI_FMT0_SR(sr));
@@ -448,7 +454,7 @@ static struct snd_soc_dai_driver sun4i_dai_dai = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000_192000,
-		.formats = SNDRV_PCM_FMTBIT_S24_LE,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &sun4i_dai_dai_ops,
 	.symmetric_rates = 1,
@@ -490,14 +496,14 @@ static int sun4i_dai_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	sdai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", regs,
+	sdai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "apb", regs,
 						&sun4i_dai_regmap_config);
 	if (IS_ERR(sdai->regmap)) {
 		dev_err(&pdev->dev, "Regmap initialisation failed\n");
 		return PTR_ERR(sdai->regmap);
 	};
 
-	sdai->mod_clk = devm_clk_get(&pdev->dev, "mod");
+	sdai->mod_clk = devm_clk_get(&pdev->dev, "dai");
 	if (IS_ERR(sdai->mod_clk)) {
 		dev_err(&pdev->dev, "Can't get our mod clock\n");
 		return PTR_ERR(sdai->mod_clk);
