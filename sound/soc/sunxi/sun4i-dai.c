@@ -181,6 +181,8 @@ static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 	int bclk_div, mclk_div;
 	int i;
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	switch (rate) {
         case 176400:
         case 88200:
@@ -207,6 +209,8 @@ static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 		return -EINVAL;
         }
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	clk_set_rate(sdai->mod_clk, clk_rate);
 
 	/* Always favor the highest oversampling rate */
@@ -219,6 +223,9 @@ static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 						  clk_rate,
 						  rate);
 
+		printk("%s +%d mclk %d bclk %d\n", __func__, __LINE__,
+		       mclk_div, bclk_div);
+
 		if (bclk_div > 0 || mclk_div > 0)
 			break;
 	}
@@ -226,11 +233,15 @@ static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 	if (bclk_div <= 0 && mclk_div <= 0)
 		return -EINVAL;
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	regmap_update_bits(sdai->regmap, SUN4I_DAI_CLK_DIV_REG,
 			   SUN4I_DAI_CLK_DIV_BCLK_MASK |
 			   SUN4I_DAI_CLK_DIV_MCLK_MASK,
 			   SUN4I_DAI_CLK_DIV_BCLK(bclk_div) |
 			   SUN4I_DAI_CLK_DIV_MCLK(mclk_div));
+
+	printk("%s +%d\n", __func__, __LINE__);
 
 	return 0;
 }
@@ -243,21 +254,31 @@ static int sun4i_dai_hw_params(struct snd_pcm_substream *substream,
 	int sr, wss;
 	u32 width;
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	if (params_channels(params) != 2)
 		return -EINVAL;
+
+	printk("%s +%d\n", __func__, __LINE__);
 
 	/* Enable the first output line */
 	regmap_update_bits(sdai->regmap, SUN4I_DAI_CTRL_REG,
 			   SUN4I_DAI_CTRL_SDO_EN_MASK,
 			   SUN4I_DAI_CTRL_SDO_EN(0));
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	/* Enable the first two channels */
 	regmap_write(sdai->regmap, SUN4I_DAI_TX_CHAN_SEL_REG,
 		     SUN4I_DAI_TX_CHAN_SEL(2));
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	/* Map them to the two first samples coming in */
 	regmap_write(sdai->regmap, SUN4I_DAI_TX_CHAN_MAP_REG,
 		     SUN4I_DAI_TX_CHAN_MAP(0, 0) | SUN4I_DAI_TX_CHAN_MAP(1, 1));
+
+	printk("%s +%d\n", __func__, __LINE__);
 
 	switch (params_physical_width(params)) {
 	case 16:
@@ -268,17 +289,25 @@ static int sun4i_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 	sdai->playback_dma_data.addr_width = width;
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	sr = sun4i_dai_params_to_sr(params);
 	if (sr < 0)
 		return -EINVAL;
+
+	printk("%s +%d\n", __func__, __LINE__);
 
 	wss = sun4i_dai_params_to_wss(params);
 	if (wss < 0)
 		return -EINVAL;
 
+	printk("%s +%d\n", __func__, __LINE__);
+
 	regmap_update_bits(sdai->regmap, SUN4I_DAI_FMT0_REG,
 			   SUN4I_DAI_FMT0_WSS_MASK | SUN4I_DAI_FMT0_SR_MASK,
 			   SUN4I_DAI_FMT0_WSS(wss) | SUN4I_DAI_FMT0_SR(sr));
+
+	printk("%s +%d\n", __func__, __LINE__);
 
 	return sun4i_dai_set_clk_rate(sdai, params_rate(params),
 				      params_width(params));
