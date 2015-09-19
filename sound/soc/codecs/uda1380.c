@@ -149,21 +149,15 @@ static int uda1380_reset(struct snd_soc_codec *codec)
 {
 	struct uda1380_platform_data *pdata = codec->dev->platform_data;
 
-	if (gpio_is_valid(pdata->gpio_reset)) {
-		gpio_set_value(pdata->gpio_reset, 1);
-		mdelay(1);
-		gpio_set_value(pdata->gpio_reset, 0);
-	} else {
-		u8 data[3];
+	u8 data[3];
 
-		data[0] = UDA1380_RESET;
-		data[1] = 0;
-		data[2] = 0;
+	data[0] = UDA1380_RESET;
+	data[1] = 0;
+	data[2] = 0;
 
-		if (codec->hw_write(codec->control_data, data, 3) != 3) {
-			dev_err(codec->dev, "%s: failed\n", __func__);
-			return -EIO;
-		}
+	if (codec->hw_write(codec->control_data, data, 3) != 3) {
+		dev_err(codec->dev, "%s: failed\n", __func__);
+		return -EIO;
 	}
 
 	return 0;
@@ -586,7 +580,6 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 {
 	int pm = uda1380_read_reg_cache(codec, UDA1380_PM);
 	int reg;
-	struct uda1380_platform_data *pdata = codec->dev->platform_data;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -595,28 +588,10 @@ static int uda1380_set_bias_level(struct snd_soc_codec *codec,
 		uda1380_write(codec, UDA1380_PM, R02_PON_BIAS | pm);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			if (gpio_is_valid(pdata->gpio_power)) {
-				gpio_set_value(pdata->gpio_power, 1);
-				mdelay(1);
-				uda1380_reset(codec);
-			}
-
-			uda1380_sync_cache(codec);
-		}
 		uda1380_write(codec, UDA1380_PM, 0x0);
 		break;
 	case SND_SOC_BIAS_OFF:
-		if (!gpio_is_valid(pdata->gpio_power))
-			break;
-
-		gpio_set_value(pdata->gpio_power, 0);
-
-		/* Mark mixer regs cache dirty to sync them with
-		 * codec regs on power on.
-		 */
-		for (reg = UDA1380_MVOL; reg < UDA1380_CACHEREGNUM; reg++)
-			set_bit(reg - 0x10, &uda1380_cache_dirty);
+		break;
 	}
 	return 0;
 }
@@ -691,6 +666,10 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 {
 	struct uda1380_platform_data *pdata =codec->dev->platform_data;
 	struct uda1380_priv *uda1380 = snd_soc_codec_get_drvdata(codec);
+	struct device_node *np = codec->dev->of_node;
+	int power_gpio = -EINVAL;
+	int reset_gpio = -EINVAL;
+	u32 dac_clk;
 	int ret;
 
 	uda1380->codec = codec;
@@ -698,18 +677,23 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 	codec->hw_write = (hw_write_t)i2c_master_send;
 	codec->control_data = uda1380->control_data;
 
-	if (!pdata)
-		return -EINVAL;
+	if (pdata) {
+		reset_gpio = pdata->gpio_reset;
+		power_gpio = pdata->gpio_power;
+		dac_clk = pdata->dac_clk;
+	} else if (np) {
+		of_property_read_u32(np, "dac-clk", &dac_clk);
+	}
 
-	if (gpio_is_valid(pdata->gpio_reset)) {
-		ret = gpio_request_one(pdata->gpio_reset, GPIOF_OUT_INIT_LOW,
+	if (gpio_is_valid(reset_gpio)) {
+		ret = gpio_request_one(reset_gpio, GPIOF_OUT_INIT_LOW,
 				       "uda1380 reset");
 		if (ret)
 			goto err_out;
 	}
 
-	if (gpio_is_valid(pdata->gpio_power)) {
-		ret = gpio_request_one(pdata->gpio_power, GPIOF_OUT_INIT_LOW,
+	if (gpio_is_valid(power_gpio)) {
+		ret = gpio_request_one(power_gpio, GPIOF_OUT_INIT_LOW,
 				   "uda1380 power");
 		if (ret)
 			goto err_free_gpio;
@@ -722,7 +706,7 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 	INIT_WORK(&uda1380->work, uda1380_flush_work);
 
 	/* set clock input */
-	switch (pdata->dac_clk) {
+	switch (dac_clk) {
 	case UDA1380_DAC_CLK_SYSCLK:
 		uda1380_write_reg_cache(codec, UDA1380_CLK, 0);
 		break;
@@ -735,8 +719,8 @@ static int uda1380_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err_free_gpio:
-	if (gpio_is_valid(pdata->gpio_reset))
-		gpio_free(pdata->gpio_reset);
+	if (gpio_is_valid(reset_gpio))
+		gpio_free(reset_gpio);
 err_out:
 	return ret;
 }
