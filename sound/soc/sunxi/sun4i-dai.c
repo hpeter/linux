@@ -83,6 +83,7 @@
 #define SUN4I_DAI_RX_CHAN_MAP_REG	0x3c
 
 struct sun4i_dai {
+	struct clk	*bus_clk;
 	struct clk	*mod_clk;
 	struct regmap	*regmap;
 
@@ -510,7 +511,7 @@ static int sun4i_dai_probe(struct platform_device *pdev)
 	sdai = devm_kzalloc(&pdev->dev, sizeof(*sdai), GFP_KERNEL);
 	if (!sdai)
 		return -ENOMEM;
-	dev_set_drvdata(&pdev->dev, sdai);
+	platform_set_drvdata(pdev, sdai);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
@@ -525,17 +526,26 @@ static int sun4i_dai_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	sdai->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "apb", regs,
-						&sun4i_dai_regmap_config);
+	sdai->bus_clk = devm_clk_get(&pdev->dev, "apb");
+	if (IS_ERR(sdai->bus_clk)) {
+		dev_err(&pdev->dev, "Can't get our bus clock\n");
+		return PTR_ERR(sdai->bus_clk);
+	}
+	clk_prepare_enable(sdai->bus_clk);
+
+	sdai->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
+					     &sun4i_dai_regmap_config);
 	if (IS_ERR(sdai->regmap)) {
 		dev_err(&pdev->dev, "Regmap initialisation failed\n");
-		return PTR_ERR(sdai->regmap);
+		ret = PTR_ERR(sdai->regmap);
+		goto err_disable_clk;
 	};
 
 	sdai->mod_clk = devm_clk_get(&pdev->dev, "dai");
 	if (IS_ERR(sdai->mod_clk)) {
 		dev_err(&pdev->dev, "Can't get our mod clock\n");
-		return PTR_ERR(sdai->mod_clk);
+		ret = PTR_ERR(sdai->mod_clk);
+		goto err_disable_clk;
 	}
 	
 	sdai->playback_dma_data.addr = res->start + SUN4I_DAI_FIFO_TX_REG;
@@ -546,21 +556,28 @@ static int sun4i_dai_probe(struct platform_device *pdev)
 					      &sun4i_dai_dai, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI\n");
-		return ret;
+		goto err_disable_clk;
 	}
 
 	ret = snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register PCM\n");
-		return ret;
+		goto err_disable_clk;
 	}
 
 	return 0;
+
+err_disable_clk:
+	clk_disable_unprepare(sdai->bus_clk);
+	return ret;
 }
 
 static int sun4i_dai_remove(struct platform_device *pdev)
 {
+	struct sun4i_dai *sdai = platform_get_drvdata(pdev);
+
 	snd_dmaengine_pcm_unregister(&pdev->dev);
+	clk_disable_unprepare(sdai->bus_clk);
 
 	return 0;
 }
