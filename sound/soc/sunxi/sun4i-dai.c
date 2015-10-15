@@ -236,11 +236,10 @@ static int sun4i_dai_set_clk_rate(struct sun4i_dai *sdai,
 
 	printk("%s +%d\n", __func__, __LINE__);
 
-	regmap_update_bits(sdai->regmap, SUN4I_DAI_CLK_DIV_REG,
-			   SUN4I_DAI_CLK_DIV_BCLK_MASK |
-			   SUN4I_DAI_CLK_DIV_MCLK_MASK,
-			   SUN4I_DAI_CLK_DIV_BCLK(bclk_div) |
-			   SUN4I_DAI_CLK_DIV_MCLK(mclk_div));
+	regmap_write(sdai->regmap, SUN4I_DAI_CLK_DIV_REG,
+		     SUN4I_DAI_CLK_DIV_BCLK(bclk_div) |
+		     SUN4I_DAI_CLK_DIV_MCLK(mclk_div) |
+		     SUN4I_DAI_CLK_DIV_MCLK_EN);
 
 	printk("%s +%d\n", __func__, __LINE__);
 
@@ -387,6 +386,12 @@ static int sun4i_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			   SUN4I_DAI_CTRL_MODE_MASK,
 			   val);
 
+	/* Set significant bits in our FIFOs */
+	regmap_update_bits(sdai->regmap, SUN4I_DAI_FIFO_CTRL_REG,
+			   SUN4I_DAI_FIFO_CTRL_TX_MODE_MASK |
+			   SUN4I_DAI_FIFO_CTRL_RX_MODE_MASK,
+			   SUN4I_DAI_FIFO_CTRL_TX_MODE(1) |
+			   SUN4I_DAI_FIFO_CTRL_RX_MODE(0));
 	return 0;
 }
 
@@ -456,9 +461,27 @@ static int sun4i_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
+static int sun4i_dai_startup(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
+{
+        struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
+
+	return clk_prepare_enable(sdai->mod_clk);
+}
+
+static void sun4i_dai_shutdown(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+        struct sun4i_dai *sdai = snd_soc_dai_get_drvdata(dai);
+
+	return clk_disable_unprepare(sdai->mod_clk);
+}
+
 static const struct snd_soc_dai_ops sun4i_dai_dai_ops = {
 	.hw_params	= sun4i_dai_hw_params,
 	.set_fmt	= sun4i_dai_set_fmt,
+	.shutdown	= sun4i_dai_shutdown,
+	.startup	= sun4i_dai_startup,
 	.trigger	= sun4i_dai_trigger,
 };
 
