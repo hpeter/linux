@@ -100,7 +100,7 @@
 		};
 
 		simple-audio-card,codec {
-			sound-dai = <&codec>;
+			sound-dai = <&ext_codec>;
 		};
 	};
 };
@@ -116,7 +116,7 @@
 	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
-	codec: codec@18 {
+	ext_codec: codec@18 {
 		#sound-dai-cells = <0>;
 		compatible = "nxp,uda1380";
 		reg = <0x18>;
