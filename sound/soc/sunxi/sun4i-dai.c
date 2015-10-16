@@ -55,6 +55,10 @@
 #define SUN4I_DAI_FIFO_CTRL_REG		0x14
 #define SUN4I_DAI_FIFO_CTRL_FLUSH_TX		BIT(25)
 #define SUN4I_DAI_FIFO_CTRL_FLUSH_RX		BIT(24)
+#define SUN4I_DAI_FIFO_CTRL_TX_MODE_MASK	BIT(2)
+#define SUN4I_DAI_FIFO_CTRL_TX_MODE(mode)		((mode) << 2)
+#define SUN4I_DAI_FIFO_CTRL_RX_MODE_MASK	GENMASK(1, 0)
+#define SUN4I_DAI_FIFO_CTRL_RX_MODE(mode)		(mode)
 
 #define SUN4I_DAI_FIFO_STA_REG		0x18
 
@@ -65,6 +69,7 @@
 #define SUN4I_DAI_INT_STA_REG		0x20
 
 #define SUN4I_DAI_CLK_DIV_REG		0x24
+#define SUN4I_DAI_CLK_DIV_MCLK_EN		BIT(7)
 #define SUN4I_DAI_CLK_DIV_BCLK_MASK		GENMASK(6, 4)
 #define SUN4I_DAI_CLK_DIV_BCLK(bclk)			((bclk) << 4)
 #define SUN4I_DAI_CLK_DIV_MCLK_MASK		GENMASK(3, 0)
@@ -144,6 +149,8 @@ static int sun4i_dai_get_bclk_div(struct sun4i_dai *sdai,
 	int div = oversample_rate / word_size / 2;
 	int i;
 
+	return 3;
+
 	for (i = 0; sun4i_dai_bclk_div[i].div; i++) {
 		const struct sun4i_dai_clk_div *bdiv = sun4i_dai_bclk_div + i;
 
@@ -161,6 +168,8 @@ static int sun4i_dai_get_mclk_div(struct sun4i_dai *sdai,
 {
 	int div = module_rate / sampling_rate / oversample_rate;
 	int i;
+
+	return 1;
 
 	for (i = 0; sun4i_dai_mclk_div[i].div; i++) {
 		const struct sun4i_dai_clk_div *mdiv = sun4i_dai_mclk_div + i;
@@ -391,7 +400,7 @@ static int sun4i_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			   SUN4I_DAI_FIFO_CTRL_TX_MODE_MASK |
 			   SUN4I_DAI_FIFO_CTRL_RX_MODE_MASK,
 			   SUN4I_DAI_FIFO_CTRL_TX_MODE(1) |
-			   SUN4I_DAI_FIFO_CTRL_RX_MODE(0));
+			   SUN4I_DAI_FIFO_CTRL_RX_MODE(1));
 	return 0;
 }
 
