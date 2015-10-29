@@ -82,6 +82,10 @@
 		vin0-supply = <&reg_ldo3>;
 		vin1-supply = <&reg_ldo4>;
 	};
+
+	panel: panel {
+		compatible = "olimex,lcd-olinuxino-43-ts";
+	};
 };
 
 &be0 {
@@ -236,6 +240,7 @@
 
 &tcon0 {
 	status = "okay";
+	allwinner,panel = <&panel>;
 };
 
 &tve0 {
