@@ -227,28 +227,6 @@ static void sun4i_get_pll5_factors(struct factors_request *req)
 }
 
 /**
- * sun6i_a31_get_pll6_factors() - calculates n, k factors for A31 PLL6x2
- * PLL6x2 rate is calculated as follows
- * rate = parent_rate * (n + 1) * (k + 1)
- * parent_rate is always 24Mhz
- */
-
-static void sun6i_a31_get_pll6_factors(struct factors_request *req)
-{
-	u8 div;
-
-	/* Normalize value to a parent_rate multiple (24M) */
-	div = req->rate / req->parent_rate;
-	req->rate = req->parent_rate * div;
-
-	req->k = div / 32;
-	if (req->k > 3)
-		req->k = 3;
-
-	req->n = DIV_ROUND_UP(div, (req->k + 1)) - 1;
-}
-
-/**
  * sun5i_a13_get_ahb_factors() - calculates m, p factors for AHB
  * AHB rate is calculated as follows
  * rate = parent_rate >> p
@@ -460,14 +438,6 @@ static const struct clk_factors_config sun4i_pll5_config = {
 	.kwidth = 2,
 };
 
-static const struct clk_factors_config sun6i_a31_pll6_config = {
-	.nshift	= 8,
-	.nwidth = 5,
-	.kshift = 4,
-	.kwidth = 2,
-	.n_start = 1,
-};
-
 static const struct clk_factors_config sun5i_a13_ahb_config = {
 	.pshift = 4,
 	.pwidth = 2,
@@ -531,13 +501,6 @@ static const struct factors_data sun4i_pll6_data __initconst = {
 	.table = &sun4i_pll5_config,
 	.getter = sun4i_get_pll5_factors,
 	.name = "pll6",
-};
-
-static const struct factors_data sun6i_a31_pll6_data __initconst = {
-	.enable = 31,
-	.table = &sun6i_a31_pll6_config,
-	.getter = sun6i_a31_get_pll6_factors,
-	.name = "pll6x2",
 };
 
 static const struct factors_data sun5i_a13_ahb_data __initconst = {
@@ -904,15 +867,6 @@ static const struct divs_data pll6_divs_data __initconst = {
 	}
 };
 
-static const struct divs_data sun6i_a31_pll6_divs_data __initconst = {
-	.factors = &sun6i_a31_pll6_data,
-	.ndivs = 2,
-	.div = {
-		{ .fixed = 2 }, /* normal output */
-		{ .self = 1 }, /* base factor clock, 2x */
-	}
-};
-
 /**
  * sunxi_divs_clk_setup() - Setup function for leaf divisors on clocks
  *
@@ -1070,9 +1024,111 @@ static void __init sun4i_pll6_clk_setup(struct device_node *node)
 CLK_OF_DECLARE(sun4i_pll6, "allwinner,sun4i-a10-pll6-clk",
 	       sun4i_pll6_clk_setup);
 
+/*
+ * Clocks that need to support a legacy binding
+ */
+
+static const struct clk_factors_config sun6i_a31_pll6_config = {
+	.nshift	= 8,
+	.nwidth = 5,
+	.kshift = 4,
+	.kwidth = 2,
+	.n_start = 1,
+};
+
+/**
+ * sun6i_a31_get_legacy_pll6_factors() - calculates n, k factors for A31 PLL6x2
+ * PLL6x2 rate is calculated as follows
+ * rate = parent_rate * (n + 1) * (k + 1)
+ * parent_rate is always 24Mhz
+ *
+ * This legacy code is still there because of a new binding introduced
+ * in 4.6, while we need to keep supporting the old behaviour
+ */
+
+static void sun6i_a31_get_legacy_pll6_factors(struct factors_request *req)
+{
+	u8 div;
+
+	/* Normalize value to a parent_rate multiple (24M) */
+	div = req->rate / req->parent_rate;
+	req->rate = req->parent_rate * div;
+
+	req->k = div / 32;
+	if (req->k > 3)
+		req->k = 3;
+
+	req->n = DIV_ROUND_UP(div, (req->k + 1)) - 1;
+}
+
+static const struct factors_data sun6i_a31_legacy_pll6_data __initconst = {
+	.enable = 31,
+	.table = &sun6i_a31_pll6_config,
+	.getter = sun6i_a31_get_legacy_pll6_factors,
+	.name = "pll6x2",
+};
+
+static const struct divs_data sun6i_a31_legacy_pll6_divs_data __initconst = {
+	.factors = &sun6i_a31_legacy_pll6_data,
+	.ndivs = 2,
+	.div = {
+		{ .fixed = 2 }, /* normal output */
+		{ .self = 1 }, /* base factor clock, 2x */
+	}
+};
+
+/**
+ * sun6i_a31_get_pll6_factors() - calculates n, k factors for A31 PLL6
+ * PLL6 rate is calculated as follows
+ * rate = parent_rate * (n + 1) * (k + 1) / 2
+ * parent_rate is always 24Mhz
+ */
+
+static void sun6i_a31_get_pll6_factors(struct factors_request *req)
+{
+	u8 div;
+
+	/* Normalize value to a parent_rate multiple (24M) */
+	div = req->rate / (req->parent_rate / 2);
+	req->rate = (req->parent_rate / 2) * div;
+
+	req->k = div / 32;
+	if (req->k > 3)
+		req->k = 3;
+
+	req->n = DIV_ROUND_UP(div, (req->k + 1)) - 1;
+}
+
+static void sun6i_a31_pll6_recalc(struct factors_request *req)
+{
+	req->rate = req->parent_rate;
+
+	req->rate *= req->n + 1;
+	req->rate *= req->k + 1;
+	req->rate /= 2;
+}
+
+static const struct factors_data sun6i_a31_pll6_data __initconst = {
+	.enable = 31,
+	.table = &sun6i_a31_pll6_config,
+	.getter = sun6i_a31_get_pll6_factors,
+	.recalc = sun6i_a31_pll6_recalc,
+};
+
 static void __init sun6i_pll6_clk_setup(struct device_node *node)
 {
-	sunxi_divs_clk_setup(node, &sun6i_a31_pll6_divs_data);
+	u32 cells;
+
+	if (!of_property_read_u32(node, "#clock-cells", &cells))
+		return;
+
+	/*
+	 * Keep supporting the old binding that had two dividers.
+	 */
+	if (cells == 1)
+		sunxi_divs_clk_setup(node, &sun6i_a31_legacy_pll6_divs_data);
+	else
+		sunxi_factors_clk_setup(node, &sun6i_a31_pll6_data);
 }
 CLK_OF_DECLARE(sun6i_pll6, "allwinner,sun6i-a31-pll6-clk",
 	       sun6i_pll6_clk_setup);
