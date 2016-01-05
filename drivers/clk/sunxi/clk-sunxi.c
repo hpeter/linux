@@ -424,6 +424,64 @@ static void sun8i_a23_get_pll1_factors(u32 *freq, u32 parent_rate,
 }
 
 /**
+ * sun6i_a31_get_pll3_factors() - calculates n, m factors for A31 PLL3
+ * PLL3 rate is calculated as follows
+ * rate = parent_rate * (n + 1) / (m + 1)
+ * parent_rate is always 24Mhz
+ */
+
+static void sun6i_a31_get_pll3_factors(u32 *freq, u32 parent_rate,
+				       u8 *n, u8 *k, u8 *m, u8 *p)
+{
+	u32 best_rate = 0, best_diff = ULONG_MAX;
+	u8 best_n = 1, best_m = 1;
+	u8 calcm;
+
+	for (calcm = 1; calcm <= 16; calcm++) {
+		u8 calcn = *freq * calcm / parent_rate;
+		u32 new_rate = parent_rate * calcn / calcm;
+		u32 diff;
+
+		if (new_rate > *freq)
+			diff = new_rate - *freq;
+		else
+			diff = *freq - new_rate;
+
+		pr_debug("%s: New rate %u (n %u, m %u), diff with requested rate %u\n",
+			 __func__, new_rate, calcn, calcm, diff);
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			best_rate = new_rate;
+			best_n = calcn;
+			best_m = calcm;
+		}
+
+		if (!diff) {
+			pr_debug("%s: Found exact match, returning...\n",
+				 __func__);
+			break;
+		}
+	}
+
+	/* If we haven't found a valid frequency, return */
+	if (!best_rate)
+		return;
+
+	*freq = best_rate;
+
+	/* We were called to round the frequency, return */
+	if (!n) {
+		pr_debug("%s: Rate rounded to %u (n %u, m %u)\n",
+			 __func__, best_rate, best_n, best_m);
+		return;
+	}
+
+	*n = best_n - 1;
+	*m = best_m - 1;
+}
+
+/**
  * sun4i_get_pll5_factors() - calculates n, k factors for PLL5
  * PLL5 rate is calculated as follows
  * rate = parent_rate * n * (k + 1)
@@ -641,6 +699,14 @@ static struct clk_factors_config sun8i_a23_pll1_config = {
 	.n_start = 1,
 };
 
+static struct clk_factors_config sun6i_a31_pll3_config = {
+	.nshift = 8,
+	.nwidth = 7,
+	.mshift = 0,
+	.mwidth = 4,
+	.n_start = 1,
+};
+
 static struct clk_factors_config sun4i_pll5_config = {
 	.nshift = 8,
 	.nwidth = 5,
@@ -692,6 +758,12 @@ static const struct factors_data sun8i_a23_pll1_data __initconst = {
 	.enable = 31,
 	.table = &sun8i_a23_pll1_config,
 	.getter = sun8i_a23_get_pll1_factors,
+};
+
+static const struct factors_data sun6i_a31_pll3_data __initconst = {
+	.enable = 31,
+	.table = &sun6i_a31_pll3_config,
+	.getter = sun6i_a31_get_pll3_factors,
 };
 
 static const struct factors_data sun7i_a20_pll4_data __initconst = {
@@ -1102,6 +1174,7 @@ static const struct of_device_id clk_factors_match[] __initconst = {
 	{.compatible = "allwinner,sun4i-a10-pll1-clk", .data = &sun4i_pll1_data,},
 	{.compatible = "allwinner,sun6i-a31-pll1-clk", .data = &sun6i_a31_pll1_data,},
 	{.compatible = "allwinner,sun8i-a23-pll1-clk", .data = &sun8i_a23_pll1_data,},
+	{.compatible = "allwinner,sun6i-a31-pll3-clk", .data = &sun6i_a31_pll3_data,},
 	{.compatible = "allwinner,sun7i-a20-pll4-clk", .data = &sun7i_a20_pll4_data,},
 	{.compatible = "allwinner,sun5i-a13-ahb-clk", .data = &sun5i_a13_ahb_data,},
 	{.compatible = "allwinner,sun4i-a10-apb1-clk", .data = &sun4i_apb1_data,},
