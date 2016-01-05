@@ -31,6 +31,8 @@ struct sun4i_a10_display_clk_data {
 	u8	offset_mux;
 	u8	offset_rst;
 
+	u32	*table_mux;
+
 	u8	width_div;
 	u8	width_mux;
 };
@@ -134,6 +136,7 @@ static void __init sun4i_a10_display_init(struct device_node *node,
 	mux->reg = reg;
 	mux->shift = data->offset_mux;
 	mux->mask = (1 << data->width_mux) - 1;
+	mux->table = data->table_mux;
 	mux->lock = &sun4i_a10_display_lock;
 
 	gate = kzalloc(sizeof(*gate), GFP_KERNEL);
@@ -221,6 +224,24 @@ static void __init sun4i_a10_tcon_ch0_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(sun4i_a10_tcon_ch0, "allwinner,sun4i-a10-tcon-ch0-clk",
 	       sun4i_a10_tcon_ch0_setup);
+
+static u32 sun8i_a23_tcon_ch0_mux_table[] = { 0, 2, 4, };
+
+static struct sun4i_a10_display_clk_data sun8i_a23_tcon_ch0_data = {
+	.parents	= 3,
+	.offset_en	= 31,
+	.offset_mux	= 24,
+	.table_mux	= sun8i_a23_tcon_ch0_mux_table,
+	.width_mux	= 3,
+};
+
+static void __init sun8i_a23_tcon_ch0_setup(struct device_node *node)
+{
+	sun4i_a10_display_init(node, &sun8i_a23_tcon_ch0_data);
+}
+CLK_OF_DECLARE(sun8i_a23_tcon_ch0, "allwinner,sun8i-a23-tcon-ch0-clk",
+	       sun8i_a23_tcon_ch0_setup);
+
 
 static struct sun4i_a10_display_clk_data sun4i_a10_display_data = {
 	.has_div	= true,
