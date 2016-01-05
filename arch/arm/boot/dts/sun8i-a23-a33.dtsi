@@ -60,7 +60,8 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0";
-			clocks = <&pll6 0>;
+			clocks = <&ahb1_gates 36>, <&ahb1_gates 44>,
+				 <&de_be_clk>, <&tcon_ch0_clk>;
 			status = "disabled";
 		};
 	};
@@ -120,6 +121,23 @@
 			clock-output-names = "pll1";
 		};
 
+		pll3: clk@01c20010 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-pll3-clk";
+			reg = <0x01c20010 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll-video";
+		};
+
+		pll3x2: pll3x2_clk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <2>;
+			clocks = <&pll3>;
+			clock-output-names = "pll-videox2";
+		};
+
 		/* dummy clock until actually implemented */
 		pll5: pll5_clk {
 			#clock-cells = <0>;
@@ -134,6 +152,30 @@
 			reg = <0x01c20028 0x4>;
 			clocks = <&osc24M>;
 			clock-output-names = "pll6", "pll6x2";
+		};
+
+		pll7: clk@01c20038 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-pll3-clk";
+			reg = <0x01c20038 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll-gpu";
+		};
+
+		pll10: clk@01c20048 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-pll3-clk";
+			reg = <0x01c20048 0x4>;
+			clocks = <&osc24M>;
+			clock-output-names = "pll-de";
+		};
+
+		pll_mipi: clk@01c20040 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun6i-a31-pll-mipi-clk";
+			reg = <0x01c20040 0x4>;
+			clocks = <&pll3>;
+			clock-output-names = "pll-mipi";
 		};
 
 		cpu: cpu_clk@01c20050 {
@@ -247,6 +289,22 @@
 			clocks = <&osc24M>;
 			clock-output-names = "usb_phy0", "usb_phy1", "usb_hsic",
 					     "usb_hsic_12M", "usb_ohci0";
+		};
+
+		de_be_clk: clk@01c20104 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a23-display-clk";
+			reg = <0x01c20104 0x4>;
+			clocks = <&pll3>, <&pll6 1>, <&pll7>, <&pll10>;
+			clock-output-names = "de-be";
+		};
+
+		tcon_ch0_clk: clk@01c20118 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun8i-a23-tcon-ch0-clk";
+			reg = <0x01c20118 0x4>;
+			clocks = <&pll3>, <&pll3x2>, <&pll_mipi>;
+			clock-output-names = "tcon-ch0-sclk";
 		};
 	};
 
