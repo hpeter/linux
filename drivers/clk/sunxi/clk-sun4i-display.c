@@ -260,3 +260,23 @@ static void __init sun4i_a10_display_setup(struct device_node *node)
 }
 CLK_OF_DECLARE(sun4i_a10_display, "allwinner,sun4i-a10-display-clk",
 	       sun4i_a10_display_setup);
+
+static u32 sun8i_a23_display_table[] = { 0, 2, 3, 5 };
+
+static struct sun4i_a10_display_clk_data sun8i_a23_display_data = {
+	.has_div	= true,
+	.parents	= 4,
+	.offset_en	= 31,
+	.offset_mux	= 24,
+	.offset_div	= 0,
+	.table_mux	= sun8i_a23_display_table,
+	.width_mux	= 3,
+	.width_div	= 4,
+};
+
+static void __init sun8i_a23_display_setup(struct device_node *node)
+{
+	sun4i_a10_display_init(node, &sun8i_a23_display_data);
+}
+CLK_OF_DECLARE(sun8i_a23_display, "allwinner,sun8i-a23-display-clk",
+	       sun8i_a23_display_setup);
