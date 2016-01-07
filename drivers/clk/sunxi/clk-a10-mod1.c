@@ -49,7 +49,7 @@ static void __init sun4i_mod1_clk_setup(struct device_node *node)
 		goto err_free_mux;
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
-	of_clk_parent_fill(node, parents, SUN4I_MOD1_MAX_PARENTS);
+	i = of_clk_parent_fill(node, parents, SUN4I_MOD1_MAX_PARENTS);
 
 	gate->reg = reg;
 	gate->bit_idx = SUN4I_MOD1_ENABLE;
