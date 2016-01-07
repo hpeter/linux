@@ -437,6 +437,11 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, tcon);
 	drv->tcon = tcon;
 
+	if (of_device_is_compatible(dev->of_node, "allwinner,sun4i-a10-tcon"))
+		tcon->has_channel_1 = true;
+	else
+		tcon->has_channel_1 = false;
+
 	ret = sun4i_tcon_init_regmap(dev, tcon);
 	if (ret) {
 		dev_err(dev, "Couldn't init our TCON regmap\n");
@@ -510,6 +515,7 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-tcon" },
+	{ .compatible = "allwinner,sun8i-a23-tcon" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);
