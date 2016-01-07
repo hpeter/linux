@@ -45,6 +45,14 @@
 #include "sun8i-a23-a33.dtsi"
 
 / {
+	chosen {
+		framebuffer@0 {
+			clocks = <&ahb1_gates 36>, <&ahb1_gates 44>,
+				 <&de_be_clk>, <&tcon_ch0_clk>,
+				 <&dram_gates 26>;
+		};
+	};
+
 	cpus {
 		cpu@2 {
 			compatible = "arm,cortex-a7";
@@ -105,6 +113,23 @@
 			reg = <0x01c2009c 0x4>;
 			clocks = <&osc24M>, <&pll6 0>;
 			clock-output-names = "ss";
+		};
+
+		dram_gates: clk@01c20100 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun8i-a33-dram-gates-clk";
+			reg = <0x01c20100 0x4>;
+			clocks = <&pll5>;
+			clock-indices = <0>,
+					<1>,
+					<16>,
+					<24>,
+					<26>;
+			clock-output-names = "dram_ve",
+					     "dram_csi",
+					     "dram_drc",
+					     "dram_de_fe",
+					     "dram_de_be";
 		};
 
 		mbus_clk: clk@01c2015c {
