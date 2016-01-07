@@ -61,6 +61,14 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	panel: panel {
+		compatible = "sinlinx,sina33-lcd-7";
+	};
+};
+
+&be0 {
+	status = "okay";
 };
 
 &ehci0 {
@@ -132,6 +140,11 @@
 
 &r_rsb {
 	status = "okay";
+};
+
+&tcon0 {
+	status = "okay";
+	allwinner,panel = <&panel>;
 };
 
 &uart0 {
