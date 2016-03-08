@@ -189,8 +189,8 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	/* Compute the start of the displayed memory */
 	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
 	paddr = gem->paddr + fb->offsets[0];
-	paddr += state->src_x * bpp;
-	paddr += state->src_y * fb->pitches[0];
+	paddr += (state->src_x >> 16) * bpp;
+	paddr += (state->src_y >> 16) * fb->pitches[0];
 
 	DRM_DEBUG_DRIVER("Setting buffer address to 0x%x\n", paddr);
 
